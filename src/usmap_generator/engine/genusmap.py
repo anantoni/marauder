@@ -56,11 +56,13 @@ def generate(exe, *, code_links=False, config_keys=(), engine_refs=None, plain_w
     except _WrappedCodeRejected as rejected:
         e, s, rep = _generate(exe, code_links=code_links, config_keys=config_keys, engine_refs=engine_refs, plain_wrapped=False)
         evidence = rejected.args[0]
-        rep["staticCodeLinks"]["plain_code_rejected"] = evidence
-        rep["staticCodeLinks"]["code_sections_read"] = evidence.get("sections_read", [])
+        # The rerun has code links off: no section's code was used. The plainness check's own
+        # .text sample stays in the evidence (sections_read).
+        rep["staticCodeLinks"]["plain_code_rejected"] = dict(evidence, reason=evidence.get("reason")
+                                                             or "wrapped constructor patterns did not resolve")
+        rep["staticCodeLinks"]["code_sections_read"] = []
         rep["staticCodeLinks"]["wrapper_sections_unread"] = evidence.get("wrapper_sections_unread", [])
-        print(f"plain_code_rejected: wrapped constructor patterns did not resolve; "
-              f"code_sections_read={evidence.get('sections_read', [])}; "
+        print(f"plain_code_rejected: wrapped constructor patterns did not resolve; code_sections_read=[]; "
               f"wrapper_sections_unread={evidence.get('wrapper_sections_unread', [])}",
               file=sys.stderr, flush=True)
         return e, s, rep
@@ -82,6 +84,8 @@ def _generate(exe, *, code_links=False, config_keys=(), engine_refs=None, plain_
             verdict = "passed" if linker.wrapper else f"rejected ({check['reason']})"
             print(f"plain .text check {verdict}; code_sections_read={check['sections_read']}; "
                   f"wrapper_sections_unread={check['wrapper_sections_unread']}", file=sys.stderr, flush=True)
+        if linker.blocked:   # code stays unread; the report still says which sections and why
+            rep["staticCodeLinks"] = linker.summary()
     rep["dataSections"] = {name: {"bytes": min(vs, rs),
                                    "sha256": hashlib.sha256(im.d[ra:ra + min(vs, rs)]).hexdigest()}
                            for name, (va, vs, ra, rs) in im.pe.secs.items() if name in im.pe.DATA_SECTIONS}

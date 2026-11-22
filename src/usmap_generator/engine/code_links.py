@@ -101,14 +101,17 @@ class CodeLinks:
     def summary(self):
         status='protected; code unread' if self.blocked else ('enabled: plain .text beside wrapper section(s) %s (wrapper unread)'%','.join(self.wrapper) if self.wrapper else 'enabled')
         out={'mode':'unprotected static code links','status':status,'protection_markers':self.blocked,**dict(self.stats)}
+        # Always present: which sections code links read, which wrapper/protection sections stayed
+        # unread, and why a plain .text beside a wrapper was refused (None when not refused).
+        out['code_sections_read']=[] if self.blocked else ['.text']
+        out['wrapper_sections_unread']=list(self.wrapper or self.blocked)
+        out['plain_code_rejected']=None
         if self.plain_check is not None:
             out['plain_code_check']=self.plain_check
-            out['code_sections_read']=self.plain_check['sections_read']
-            out['wrapper_sections_unread']=self.plain_check['wrapper_sections_unread']
             if self.plain_check['reason']:
                 out['plain_code_rejected']={'reason':self.plain_check['reason']}
         if self.wrapper:
-            out['code_sections_read']=['.text']; out['wrapper_sections']=self.wrapper
+            out['wrapper_sections']=self.wrapper
         return out
 
     def read(self, va, size):
