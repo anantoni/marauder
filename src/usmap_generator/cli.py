@@ -68,7 +68,13 @@ def cmd_generate(args, con):
     out = Path(args.output or f"{inst.project.name}.usmap")
     if out.suffix.lower() != ".usmap": out = out.with_name(out.name + ".usmap")
     if out.parent and not out.parent.exists(): out.parent.mkdir(parents=True, exist_ok=True)
-    res = generate(inst, keys=keys, engine_version=args.engine_version, code_links=not args.data_only, progress=con.info)
+    engine_refs = None
+    if args.engine_refs:
+        from .engine.engine_references import load
+        engine_refs = load(args.engine_refs)
+        con.info(f"Loaded engine type relations from {len(engine_refs)} reference mapping(s)")
+    res = generate(inst, keys=keys, engine_version=args.engine_version, code_links=not args.data_only,
+                   engine_refs=engine_refs, progress=con.info)
     U.write(str(out), res.enums, res.structs)
     con.info(f"Wrote {out} ({len(res.structs)} classes/structs, {len(res.enums)} enums, engine {res.engine_version or 'unknown'})")
     if args.per_asset:
@@ -150,6 +156,8 @@ def parser():
     g.add_argument("--engine-version", metavar="X.Y", help="engine version, if the executable does not store it (e.g. 5.3)")
     g.add_argument("--data-only", action="store_true",
                    help="read only data sections of the executable (skips the static code links; slightly less accurate)")
+    g.add_argument("--engine-refs", metavar="USMAP", action="append",
+                   help="reference mapping made with verified code links; may be repeated, used only when code links are unavailable")
     g.add_argument("--report", metavar="FILE", help="write a JSON report (counts, every unread archive and the reason)")
     g.add_argument("--strict", action="store_true", help="exit with code 4 if any archive or entry could not be read")
     g.add_argument("-q", "--quiet", action="store_true", help="print only warnings, errors and the final line")

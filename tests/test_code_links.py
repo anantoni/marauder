@@ -450,6 +450,11 @@ class StaticLinks(unittest.TestCase):
             self.assertEqual(links.class_candidates(),set())
             self.assertNotIn('code_bytes_read',links.summary())
             with self.assertRaises(ValueError):links.read(BASE+0x1100,1)
+            # .bind wrapper: the .text plain check runs (reads .text only) and fails here, so code stays off
+            self.assertIsNotNone(links.plain_check['reason'])
+            self.assertEqual(links.plain_check['sections_read'],['.text'])
+            self.assertEqual(links.summary()['plain_code_check']['wrapper_sections_unread'],['.bind'])
+            self.assertEqual(CodeLinks(image,im_functions(image),plain_wrapped=False).plain_check,None)
 
     def test_class_identity_needs_package_name_singleton_and_callback(self):
         im=Img();start=BASE+0x1600

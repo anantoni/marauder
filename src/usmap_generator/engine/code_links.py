@@ -1,12 +1,20 @@
 """Optional bounded static constructor links for ordinary x64 PE code.
 
-No execution, patching, unpacking, emulation or reference input. Wrapper
-markers reject the mode before any executable-section read. The default generator
-continues to use data only. Instruction bytes and addresses are private evidence.
+No execution, patching, unpacking, emulation, or reference input. Wrapper
+markers reject the mode before any code read, with one exception (owner decision, 22 Nov
+2026): a SteamStub wrapper keeps its own code in the separate .bind section. The game's
+.text may then be stored plain. plain_code_check() reads .text only (never the wrapper
+section) and admits it only when it is verifiably plain: low entropy in every sampled block,
+nearly every sampled .pdata function decodes as x86-64 to its end with branch targets inside
+.text, and enough functions are sampled. The generator then also requires that the known
+constructor patterns resolve (genusmap.generate); otherwise code links stay off. The default
+generator continues to use data only. Instruction bytes and addresses are private evidence.
 """
 import bisect,re,struct
 from collections import Counter,defaultdict
 
+# Wrappers whose own code lives in a separate section, so the game's code section can be plain.
+PLAIN_CODE_WRAPPERS = {'.bind'}
 PROTECTED = {'.bind','upx0','upx1','.vmp0','.vmp1','.vmp2','.themida','.enigma','.winlice'}
 # Legacy engine reflection classes have no own reflected fields unless a validated
 # FClassParams record supplies them. Never extend this rule to arbitrary native classes.
@@ -24,10 +32,62 @@ LEGACY_EMPTY_INTRINSICS = {
     'ObjectReachabilityStressData','InstanceDataObjectStruct',
 }
 
+def _entropy(block):
+    import math
+    if not block:return 0.0
+    c=Counter(block);n=len(block)
+    return -sum(v/n*math.log2(v/n) for v in c.values())
+
+
+def plain_code_check(image, functions, blocks=128, block_size=1<<16, sample=2000, min_functions=200,
+                     max_block_entropy=7.2, min_block_entropy=3.5, min_decoded=0.95, min_targets=0.98):
+    """Is .text stored as plain x86-64? Reads .text only. Returns (ok, evidence)."""
+    import capstone
+    ev={'sections_read':['.text'],'reason':None}
+    if '.text' not in image.pe.secs: ev['reason']='no .text';return False,ev
+    lo,hi,raw=image.pe.sec('.text');size=hi-lo
+    md=capstone.Cs(capstone.CS_ARCH_X86,capstone.CS_MODE_64)
+    with open(image.pe.path,'rb') as f:
+        def read(va,n):
+            f.seek(raw+va-lo);return f.read(max(0,min(n,hi-va)))
+        step=max(block_size,size//blocks);ent=[]
+        for off in range(0,max(1,size-block_size+1),step):
+            ent.append(_entropy(read(lo+off,block_size)))
+        ev['entropy_blocks']=len(ent);ev['entropy_max']=round(max(ent),3) if ent else None
+        ev['entropy_min']=round(min(ent),3) if ent else None
+        if not ent or max(ent)>max_block_entropy:ev['reason']='entropy above plain-code range';return False,ev
+        if min(ent)<min_block_entropy:ev['reason']='entropy below code range (empty or filled section)';return False,ev
+        starts=sorted(a for a,(n,_) in functions.items() if lo<=a<hi and 0<n<=16384)
+        picked=starts[::max(1,len(starts)//sample)][:sample]
+        ev['functions_sampled']=len(picked)
+        if len(picked)<min_functions:ev['reason']='too few functions to verify';return False,ev
+        whole=0;targets=inside=0
+        for a in picked:
+            n=functions[a][0];done=0
+            for ins in md.disasm_lite(read(a,n),a):
+                done=ins[0]+ins[1]-a
+                m=ins[2]
+                if m=='call' or m[0]=='j':
+                    try:t=int(ins[3],16)
+                    except ValueError:continue
+                    targets+=1;inside+=lo<=t<hi
+            whole+=done>=n
+        ev['decoded_fraction']=round(whole/len(picked),4)
+        ev['branch_targets']=targets;ev['branch_targets_inside']=round(inside/targets,4) if targets else None
+        if whole/len(picked)<min_decoded:ev['reason']='functions do not decode as x86-64';return False,ev
+        if not targets or inside/targets<min_targets:ev['reason']='branch targets leave .text';return False,ev
+    return True,ev
+
+
 class CodeLinks:
-    def __init__(self, image, functions):
+    def __init__(self, image, functions, plain_wrapped=True):
         self.im=image; self.functions=functions; self.starts=sorted(functions)
-        self.blocked=sorted(n for n in image.pe.secs if n.lower() in PROTECTED)
+        markers=sorted(n for n in image.pe.secs if n.lower() in PROTECTED)
+        self.blocked=markers; self.wrapper=[]; self.plain_check=None
+        if markers and plain_wrapped and all(n.lower() in PLAIN_CODE_WRAPPERS for n in markers):
+            ok,self.plain_check=plain_code_check(image,functions)
+            self.plain_check['wrapper_sections_unread']=markers
+            if ok: self.blocked=[]; self.wrapper=markers
         self.stats=Counter(); self.scanned={}
         self.class_slots=defaultdict(set);self.class_records={};self.singleton_copies=defaultdict(set);self.singleton_copy_writers=defaultdict(set);self.parameter_outputs=defaultdict(set);self.class_parameters={}
         self.md=None
@@ -39,8 +99,17 @@ class CodeLinks:
             self.md.detail=True
 
     def summary(self):
-        return {'mode':'unprotected static code links','status':'protected; code unread' if self.blocked else 'enabled',
-                'protection_markers':self.blocked,**dict(self.stats)}
+        status='protected; code unread' if self.blocked else ('enabled: plain .text beside wrapper section(s) %s (wrapper unread)'%','.join(self.wrapper) if self.wrapper else 'enabled')
+        out={'mode':'unprotected static code links','status':status,'protection_markers':self.blocked,**dict(self.stats)}
+        if self.plain_check is not None:
+            out['plain_code_check']=self.plain_check
+            out['code_sections_read']=self.plain_check['sections_read']
+            out['wrapper_sections_unread']=self.plain_check['wrapper_sections_unread']
+            if self.plain_check['reason']:
+                out['plain_code_rejected']={'reason':self.plain_check['reason']}
+        if self.wrapper:
+            out['code_sections_read']=['.text']; out['wrapper_sections']=self.wrapper
+        return out
 
     def read(self, va, size):
         if self.blocked: raise ValueError('Protected executable: code reads forbidden')

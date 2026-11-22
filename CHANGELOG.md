@@ -12,6 +12,9 @@ Initial public release.
 - `--per-asset`: per-asset mapping of UE5 Anim Blueprint generated structs in JSON and binary
   (same content; format in `docs/per-asset-format.md`).
 - `--aes-key` / `--aes-keys-file`: read encrypted archives with the user's own AES-256 key.
+- `--engine-refs`: use engine type relations from reference mappings to improve data-only struct naming.
+- For a SteamStub-wrapped executable, verify plain `.text` before static links; the wrapper section
+  stays unread, and links fall back off if plainness or constructor coverage is insufficient.
 - UE5 maps always contain the `AnimBlueprintGeneratedStruct` record.
 - Public spelling table keyed by engine version (16 versions, 262 rows; identifiers and counts only).
 - `marauder compare`: field and record accuracy against a reference mapping, with the paper's metric.

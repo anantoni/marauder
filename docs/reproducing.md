@@ -18,6 +18,17 @@ Everything needed to check the published numbers on games you own, without any o
 | `gold_sha256` | SHA-256 of the runtime reference mapping |
 | `generated` | which generator version made the scored map |
 | `generated_sha256` | SHA-256 of that generated mapping |
+| `score_fields_right`, `score_fields_total`, `score_fields_percent` | exact field comparison against the frozen runtime reference |
+| `score_fields_casefold_right`, `score_fields_casefold_total`, `score_fields_casefold_percent` | field comparison after folding ASCII letter case |
+| `score_records_identical`, `score_records_total`, `score_records_percent` | complete type and enum records that match |
+| `score_differences`, `score_case_only_differences` | difference rows, including the case-only subset |
+
+Score columns are populated for scored games and blank for excluded rows. These release-run
+scores come from `marauder compare` against the frozen gold. The `generated_sha256` value is the
+hash of the corresponding release-run map; game slugs and generated maps remain private.
+When a report is requested, `staticCodeLinks` also records `code_sections_read`,
+`wrapper_sections_unread`, and `plain_code_rejected` for a wrapped executable. The CLI prints the
+plain `.text` check result and those section boundaries while it runs.
 
 ## Steps
 

@@ -152,6 +152,15 @@ def word_score(profile, parent_toks, type_name, type_toks, exact_names=()):
     if len(type_toks) >= 2 and frozenset(type_toks) in exact_names: v += 1.0
     return v
 
+def base_score(children, type_name, type_toks):
+    """Words of a candidate for a constructor that is only ever a super. Each word earns the share
+    of the children whose names contain it. A word no child has costs nothing: base types carry
+    abstract words (SkeletalControlBase, BinaryAggregateOp) that their children replace, while a
+    leaf sibling shares the family words and so must not win on them alone. "Base" is the engine's
+    own suffix for such parents."""
+    ch = [toks(c) for c in children]
+    return sum(sum(t in c for c in ch) / len(ch) + (0.5 if t == "base" else 0.0) for t in type_toks)
+
 def runs(fsig, refs, gap=0x80):
     """Runs of functions sharing the constructor signature (the (size, unwind) of most referenced ones)."""
     c = Counter(fsig.get(z) for z in refs if z in fsig)

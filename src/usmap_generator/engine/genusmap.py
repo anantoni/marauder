@@ -44,16 +44,44 @@ NATIVE_ORDER = True
 
 DEBUG = {}   # internals of the last run, for measurement harnesses (never written to the output)
 
-def generate(exe, *, code_links=False, config_keys=()):
+class _WrappedCodeRejected(Exception):
+    pass
+
+def generate(exe, *, code_links=False, config_keys=(), engine_refs=None, plain_wrapped=True):
+    """See _generate. plain_wrapped (v13): admit a plain .text beside a SteamStub .bind wrapper
+    (code_links.plain_code_check); if the known constructor patterns then do not resolve, the
+    run restarts with code links off and the evidence stays in the report."""
+    try:
+        return _generate(exe, code_links=code_links, config_keys=config_keys, engine_refs=engine_refs, plain_wrapped=plain_wrapped)
+    except _WrappedCodeRejected as rejected:
+        e, s, rep = _generate(exe, code_links=code_links, config_keys=config_keys, engine_refs=engine_refs, plain_wrapped=False)
+        evidence = rejected.args[0]
+        rep["staticCodeLinks"]["plain_code_rejected"] = evidence
+        rep["staticCodeLinks"]["code_sections_read"] = evidence.get("sections_read", [])
+        rep["staticCodeLinks"]["wrapper_sections_unread"] = evidence.get("wrapper_sections_unread", [])
+        print(f"plain_code_rejected: wrapped constructor patterns did not resolve; "
+              f"code_sections_read={evidence.get('sections_read', [])}; "
+              f"wrapper_sections_unread={evidence.get('wrapper_sections_unread', [])}",
+              file=sys.stderr, flush=True)
+        return e, s, rep
+
+def _generate(exe, *, code_links=False, config_keys=(), engine_refs=None, plain_wrapped=True):
     """config_keys (v11): startup configuration keys in load order (config_order.startup_files +
-    config_order.keys); they follow the static-initializer names in the FName display order."""
+    config_order.keys); they follow the static-initializer names in the FName display order.
+    engine_refs (v13): engine_references.relations() of other games' code-linked mappings; used
+    only when constructors are named from data (no code links)."""
     t0 = time.time()
     im = Image(exe); sc = Scanner(im); sc.prepare()
     rep = {"exe": os.path.basename(exe), "layouts": {}, "counts": {}}
     linker = None
     if code_links:
         from .code_links import CodeLinks
-        linker = CodeLinks(im, im_functions(im))
+        linker = CodeLinks(im, im_functions(im), plain_wrapped=plain_wrapped)
+        if linker.plain_check is not None:
+            check = linker.plain_check
+            verdict = "passed" if linker.wrapper else f"rejected ({check['reason']})"
+            print(f"plain .text check {verdict}; code_sections_read={check['sections_read']}; "
+                  f"wrapper_sections_unread={check['wrapper_sections_unread']}", file=sys.stderr, flush=True)
     rep["dataSections"] = {name: {"bytes": min(vs, rs),
                                    "sha256": hashlib.sha256(im.d[ra:ra + min(vs, rs)]).hexdigest()}
                            for name, (va, vs, ra, rs) in im.pe.secs.items() if name in im.pe.DATA_SECTIONS}
@@ -223,9 +251,23 @@ def generate(exe, *, code_links=False, config_keys=()):
     # supply evidence without consuming names or changing the evaluation population.
     required_s, required_e = set(sev), set(eev)
     hints = naming.signature_hints(functions, sbyname)
+    if engine_refs and not (linker and not linker.blocked):
+        from . import engine_references
+        owners = {nm: x["tree"] for nm, x in cbyname.items()}
+        owners.update({nm: x["tree"] for nm, x in sbyname.items()})
+        rh = engine_references.hints(engine_refs, owners, {nm: x["super_fn"] for nm, x in sbyname.items()}, sbyname)
+        rh = {z: n for z, n in rh.items() if z in required_s}
+        for z, n in rh.items(): hints[z] = set(hints.get(z, ())) | {n}
+        rep["counts"]["referenceHints"] = len(rh)
     for f in functions.values():
         collect(f["tree"], f["size"], f["owner"] + "_" + f["name"])
     sev = {z: e for z, e in sev.items() if z in required_s}
+    if linker and linker.wrapper:
+        # Known constructor patterns must resolve on a wrapped executable's code, or code stays off.
+        cover = len(set(direct_s) & set(sev)) / max(1, len(sev))
+        rep["staticCodeLinks"]["wrapped_constructor_coverage"] = round(cover, 4)
+        log(f"wrapped executable: {cover:.1%} of struct constructors resolved from .text")
+        if cover < 0.5: raise _WrappedCodeRejected({"constructor_coverage": round(cover, 4), **linker.plain_check})
     eev = {z: e for z, e in eev.items() if z in required_e}
     rep["counts"]["functionParams"] = len(functions)
     rep["layouts"]["functions"] = dict(Counter(f["layout"] for f in functions.values()))
@@ -241,7 +283,12 @@ def generate(exe, *, code_links=False, config_keys=()):
         e = sev[z]
         if nm in e["subs"]: return None              # a struct is never its own super
         sz, al = ssize[nm]; hi = e["hi"]
-        if hi is not None and sz > hi: return None
+        if hi is not None and sz > hi:
+            # An empty struct can take no storage (empty base, no-unique-address member), and a
+            # derived struct's first members can sit in its base's tail padding (MSVC, align >= 16).
+            if sz == 1 and hi == 0: sz = 0
+            elif e["subs"] and sz - hi < al: sz = hi
+            else: return None
         v = 0.0
         if hi is not None:
             v += 3.0 if sz == hi else (1.0 if hi - sz < max(al, 8) else -min(2.0, (hi - sz) / 32.0))
@@ -249,6 +296,8 @@ def generate(exe, *, code_links=False, config_keys=()):
         u, p = sevt[z]
         if len(hints.get(z, ())) == 1:
             v += 12.0 if nm in hints[z] else -12.0
+        if e["subs"] and not e["names"]:   # used only as a super: judge by the words its children share
+            return v + naming.base_score(e["subs"], nm, stok[nm]) - 0.03 * len(nm)
         return v + naming.word_score(u, p, nm, stok[nm], exact_names=sexact[z]) - 0.03 * len(nm)   # weak Occam prior: short (core) names
     # entry names per enum without their common prefix (ECC_WorldStatic -> worldstatic)
     eents = {}
@@ -561,8 +610,14 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("exe"); ap.add_argument("out"); ap.add_argument("--report")
     ap.add_argument("--code-links", action="store_true", help="Static links from ordinary unprotected code; protected sections remain unread")
+    ap.add_argument("--engine-refs", nargs="+", metavar="USMAP", help="Code-linked mappings this generator made for other games; "
+                    "their engine type relations name constructors when code links are unavailable")
     a = ap.parse_args()
-    e, s, rep = generate(a.exe, code_links=a.code_links)
+    refs = None
+    if a.engine_refs:
+        from . import engine_references
+        refs = engine_references.load(a.engine_refs)
+    e, s, rep = generate(a.exe, code_links=a.code_links, engine_refs=refs)
     U.write(a.out, e, s)
     log(f"wrote {a.out}: {len(s)} structs/classes, {len(e)} enums")
     if a.report: json.dump(rep, open(a.report, "w"), indent=1)

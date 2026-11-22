@@ -137,7 +137,7 @@ def find_oodle(install):
     return None
 
 
-def generate(install, *, keys=None, engine_version=None, code_links=True,
+def generate(install, *, keys=None, engine_version=None, code_links=True, engine_refs=None,
              progress: Callable[[str], None] = lambda s: None) -> Result:
     t0 = time.time()
     unreadable: List[dict] = []
@@ -166,7 +166,8 @@ def generate(install, *, keys=None, engine_version=None, code_links=True,
     step(2, f"Reading type tables from {install.exe.name}")
     ckeys = config_order.startup_keys(files)
     try:
-        ge, gs, rep = G.generate(str(install.exe), code_links=code_links, config_keys=ckeys)
+        ge, gs, rep = G.generate(str(install.exe), code_links=code_links, config_keys=ckeys,
+                                 engine_refs=engine_refs)
     except Exception as ex:
         raise GenerationError(f"{install.exe}: no Unreal Engine reflection tables could be read "
                               f"({type(ex).__name__}: {ex}). Protected or packed executables and non-x64 "
