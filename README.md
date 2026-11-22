@@ -128,7 +128,7 @@ marauder --version
 | `--per-asset` | Also write the per-asset mapping: `<output>.perasset.json` and `<output>.perasset.bin` (UE5). See [Per-asset mapping](#per-asset-mapping). |
 | `--aes-key KEY` | Your AES-256 key for encrypted archives: 64 hex digits (`0x` optional) or base64. `GUID:KEY` gives the key for one key GUID. Can be repeated. |
 | `--aes-keys-file FILE` | A file with several keys. See [Encrypted games](#encrypted-games). |
-| `--engine-version X.Y` | The engine version, when the executable does not store it (for example `5.3`). Used for the spelling votes and the UE5 steps. |
+| `--engine-version X.Y` | The engine version, when the executable does not store it (for example `5.3`); otherwise it is estimated from the type names. Used for the spelling votes and the UE5 steps. |
 | `--data-only` | Read only the data sections of the executable. Skips the static code links that help name a few types; slightly less accurate. |
 | `--report FILE` | Write a JSON report: counts per step, the engine version and how it was found, and every archive or entry that was not read, with the reason. |
 | `--strict` | Exit with code 4 if any archive or entry could not be read. |
@@ -246,7 +246,7 @@ Field accuracy of this release's configuration (public spelling table):
 | Set | Games | Fields right |
 |---|---:|---:|
 | Development (UE 4.17 to 5.7) | 66 | 99.923% |
-| Hold-out | 31 | 99.883% |
+| Hold-out | 31 | 99.885% |
 | Fresh blind hold-out (frozen before scoring) | 24 | 99.867% |
 
 - By engine version (development set, research configuration): UE 4.17 to 4.27 99.990% (99.999% ignoring letter case); UE 5.0 to 5.7 99.89% to 99.90%.
@@ -283,7 +283,7 @@ provider.MappingsContainer = new FileUsmapTypeMappingsProvider(@"C:\path\MyGame.
 
 **Oodle.** Many games compress archives with Oodle, which is not open source. On Windows, Marauder uses the `oo2core_*_win64.dll` that the game ships, when it finds one. Otherwise set `UE_OODLE_LIB` to the Oodle runtime library for your system (Windows: `oo2core_9_win64.dll`; Linux: a native `liboo2corelinux64.so`) before running Marauder. Without it, Oodle-compressed entries are listed as not read and the map is less complete.
 
-**"engine unknown" / "no spelling table".** Some executables do not store the engine version. Pass `--engine-version X.Y` if you know it.
+**"engine unknown" / "no spelling table".** Some executables do not store the engine version. Marauder then estimates it from the type names ("estimated from the type names" in the output, `engineVersionBasis: "type names"` in the report). Pass `--engine-version X.Y` if you know it.
 
 **The output differs from my runtime dump in letter case.** Expected for a few names (see Limitations). The `compare` command shows how many differences are case only.
 

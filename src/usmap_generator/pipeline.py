@@ -26,6 +26,7 @@ from .engine import config_order
 from .engine import partial_enums
 from .engine import reference_spellings as refs
 from .engine import intrinsic_classes
+from .engine import version_markers
 from .engine import anim_structs as A
 from .engine import anim_choice as C
 from .engine.archives import Pak
@@ -56,6 +57,25 @@ class Result:
 def spelling_table():
     with resources.files("usmap_generator").joinpath("data/spelling_table_by_engine_version.json").open("rb") as f:
         return json.load(f)
+
+
+def table_for_version(tables, version):
+    """(key, table) for an engine version: the major.minor table when the minor version is known
+    and has one; otherwise the table pooled over every minor version of the major (key "5"), whose
+    rule is stricter because a game of any minor version that kept the generated spelling blocks
+    the change. A layout estimate such as "5.x" names only the major version."""
+    if not version: return None, None
+    parts = str(version).split(".")
+    if len(parts) >= 2 and parts[1].isdigit():
+        mm = f"{parts[0]}.{parts[1]}"
+        if tables.get(mm): return mm, tables[mm]
+    major = _major(version)
+    if major is not None and tables.get(str(major)): return str(major), tables[str(major)]
+    return None, None
+
+
+def describe_table(key):
+    return key if "." in key else f"{key}.x (all {key}.y versions pooled)"
 
 
 def choose_spellings(enums, structs, exe, qualified, table, min_votes=2):
@@ -89,6 +109,18 @@ def _roundtrip(enums, structs):
         return U.read(path)
     finally:
         os.unlink(path)
+
+
+def code_sections(rep):
+    """Which executable sections the static code links read, which wrapper or protection sections
+    stayed unread, and why a plain .text beside a wrapper was refused (None when it was not)."""
+    links = rep.get("staticCodeLinks")
+    if not links:
+        return {"code_sections_read": [], "wrapper_sections_unread": [], "plain_code_rejected": None,
+                "status": "code links off"}
+    return {"code_sections_read": list(links.get("code_sections_read", [])),
+            "wrapper_sections_unread": list(links.get("wrapper_sections_unread", [])),
+            "plain_code_rejected": links.get("plain_code_rejected"), "status": links.get("status")}
 
 
 def _major(version):
@@ -176,6 +208,10 @@ def generate(install, *, keys=None, engine_version=None, code_links=True, engine
         raise GenerationError(f"{install.exe}: no Unreal Engine type records found. Is this the game's "
                               "*-Shipping.exe (not a launcher)? Protected executables are not supported.")
     enums, structs = _roundtrip(ge, gs)
+    cs = code_sections(rep)
+    progress(f"      code sections read: {', '.join(cs['code_sections_read']) or 'none'}"
+             + (f"; wrapper sections unread: {', '.join(cs['wrapper_sections_unread'])}" if cs["wrapper_sections_unread"] else "")
+             + (f"; plain code rejected: {cs['plain_code_rejected']['reason']}" if cs["plain_code_rejected"] else ""))
     image = Image(str(install.exe))
     vs = version_string(image)
     version = engine_version or vs or (rep.get("engineVersionEstimate") or {}).get("version")
@@ -202,14 +238,22 @@ def generate(install, *, keys=None, engine_version=None, code_links=True, engine
     enums = restore_automatic_maxima(enums, info, flags_maximum_policy(vs))
 
     step(4, "Applying spelling votes for this engine version")
+    estimated = None
+    if not engine_version and not vs:
+        # No build string: estimate the minor version from the reflected type names (the names the
+        # map will hold once intrinsic classes are added; see engine/version_markers.py).
+        seen = dict(structs); intrinsic_classes.recover(image.d, seen)
+        estimated = version_markers.estimate(set(seen) | set(enums), major, version_markers.load())
+        if estimated:
+            progress(f"      engine {estimated} estimated from the type names (the executable stores no build string)")
+            version = estimated
     qualified = lambda n, e: f"{n}::{e}" in exe
-    mm = ".".join(str(version).split(".")[:2]) if version else None
-    table = spelling_table().get(mm) if mm else None
+    key, table = table_for_version(spelling_table(), version)
     respelled = 0
     if table:
         choice = choose_spellings(enums, structs, exe, qualified, table)
         enums, structs = refs.respell(enums, structs, choice, qualified); respelled = len(choice)
-        progress(f"      {respelled} names respelled from the {mm} table")
+        progress(f"      {respelled} names respelled from the {describe_table(key)} table")
     else:
         progress(f"      no spelling table for engine {version or 'unknown'}; step skipped"
                  + ("" if engine_version else " (use --engine-version X.Y if you know it)"))
@@ -233,8 +277,9 @@ def generate(install, *, keys=None, engine_version=None, code_links=True, engine
     step(6, "Final checks")
     if major is None and scan is not None and (scan.records or scan.anim_classes): major = 5
     added = ensure_anim_struct_class(structs, major)
-    report = {"engineVersion": version, "engineVersionBasis": "--engine-version" if engine_version else
+    report = {"engineVersion": version, "engineVersionBasis": "--engine-version" if engine_version else "type names" if estimated else
               ("build string" if vs else "layout estimate"), "archives": inv, "spellingVotes": respelled,
+              "spellingTable": key, "codeSections": code_sections(rep),
               "animStructsAdded": chosen, "animStructClassAdded": added, "generator": rep,
               "seconds": round(time.time() - t0, 1)}
     return Result(enums, structs, version, report, unreadable, scan)

@@ -16,7 +16,12 @@ Initial public release.
 - For a SteamStub-wrapped executable, verify plain `.text` before static links; the wrapper section
   stays unread, and links fall back off if plainness or constructor coverage is insufficient.
 - UE5 maps always contain the `AnimBlueprintGeneratedStruct` record.
-- Public spelling table keyed by engine version (16 versions, 262 rows; identifiers and counts only).
+- Public spelling table keyed by engine version (16 versions, 140 rows, plus pooled tables per major
+  version; identifiers and counts only), built from this release's own output on the development games.
+- Executables without an engine build string: the minor version is estimated from the reflected type
+  names (public marker list), so the spelling votes still apply; otherwise the pooled major table is used.
+- The report always lists `code_sections_read`, `wrapper_sections_unread` and `plain_code_rejected`
+  (under `codeSections` and `generator.staticCodeLinks`), and step 2 prints which code sections were read.
 - `marauder compare`: field and record accuracy against a reference mapping, with the paper's metric.
 - `marauder inspect`: print a mapping's classes, structs and enums.
 - Benchmark list with Steam app IDs, build IDs, depot manifests and SHA-256 hashes.

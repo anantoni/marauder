@@ -49,14 +49,24 @@ plain `.text` check result and those section boundaries while it runs.
 spelling rule, which votes with runtime dumps of the most similar development games. Those dumps
 are not distributed, so this release uses a derived table instead
 ([`src/usmap_generator/data/spelling_table_by_engine_version.json`](../src/usmap_generator/data/spelling_table_by_engine_version.json):
-16 engine versions, 262 rows, identifiers and vote counts only). Its output can differ from
-`generated_sha256` in the letter case of a few names. The paper reports both configurations:
+16 engine versions with 140 rows, plus one table per major version pooled over its minor versions
+with 103 rows; identifiers and vote counts only). The table is built from this release's own
+output on the development games, so its rows describe the generator that ships. Its output can
+differ from `generated_sha256` in the letter case of a few names. Both configurations:
 
 | Set | Research configuration | This release (public table) |
 |---|---:|---:|
 | Development (66 games) | 99.923% | 99.923% (leave-one-out) |
-| Hold-out (31) | 99.886% | 99.883% |
+| Hold-out (31) | 99.886% | 99.885% |
 | Fresh blind hold-out (24) | 99.867% | 99.867% |
+
+When the executable stores no engine build string, the minor version is estimated from the
+reflected type names
+([`src/usmap_generator/data/engine_version_markers.json`](../src/usmap_generator/data/engine_version_markers.json):
+type names added or removed by each engine version, from the development games). On the 109 games
+whose executables store the build string, the estimate matches it on 105 (the four misses are
+neighbouring versions). When no estimate is possible, the pooled table for the major version is
+used; it respells a name only when no game of that major version kept the generated spelling.
 
 ## Rebuilding the spelling table
 
@@ -65,4 +75,8 @@ captures: one pickle per game with `{"rows": {stem: (generated spelling, referen
 a JSON file mapping each pickle name to its engine version (`"5.3"`). The table keeps only stems for
 which at least one game shows a different spelling. A name is respelled when at least two games of
 the same engine version agree on one other spelling, no game kept the generated one, and the new
-spelling occurs in the executable.
+spelling occurs in the executable. Build the pickles from maps made by the same Marauder version
+you ship: rows from another version's output describe its spellings, not this one's.
+
+[`tools/build_version_markers.py`](../tools/build_version_markers.py) rebuilds the version markers
+from generated maps of games whose engine version you know.
