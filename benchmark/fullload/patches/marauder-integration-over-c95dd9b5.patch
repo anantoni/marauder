@@ -1,0 +1,1130 @@
+diff --git a/CUE4Parse.Tests/DatasmithSceneTests.cs b/CUE4Parse.Tests/DatasmithSceneTests.cs
+new file mode 100644
+index 00000000..8f1a1a31
+--- /dev/null
++++ b/CUE4Parse.Tests/DatasmithSceneTests.cs
+@@ -0,0 +1,53 @@
++using CUE4Parse.MappingsProvider;
++using CUE4Parse.UE4.Assets;
++using CUE4Parse.UE4.Assets.Exports;
++using CUE4Parse.UE4.Assets.Exports.Datasmith;
++using CUE4Parse.UE4.Assets.Readers;
++using CUE4Parse.UE4.Objects.UObject;
++using CUE4Parse.UE4.Readers;
++using CUE4Parse.UE4.Versions;
++
++namespace CUE4Parse.Tests;
++
++public class DatasmithSceneTests
++{
++    [Theory]
++    [InlineData(EGame.GAME_UE4_27)]
++    [InlineData(EGame.GAME_UE5_2)]
++    [InlineData(EGame.GAME_UE5_3)]
++    public void ReadsStripFlagsAfterProperties(EGame game)
++    {
++        using var s = new MemoryStream();
++        s.Write(BitConverter.GetBytes(0L)); // tagged properties: None
++        if (new FByteArchive("v", [], new VersionContainer(game)).Ver >= EUnrealEngineObjectUE5Version.PROPERTY_TAG_EXTENSION_AND_OVERRIDABLE_SERIALIZATION)
++            s.WriteByte(0); // class serialization control extension
++        s.Write(BitConverter.GetBytes(0));  // no object guid
++        s.Write([1, 0]);                    // strip flags: editor data stripped
++        var bytes = s.ToArray();
++
++        var archive = new FAssetArchive(new FByteArchive("synthetic", bytes, new VersionContainer(game)), new SyntheticPackage());
++        var scene = new UDatasmithScene();
++        scene.Deserialize(archive, bytes.Length);
++
++        Assert.Equal(bytes.Length, archive.Position);
++        Assert.True(scene.StripFlags.IsEditorDataStripped());
++    }
++
++    private sealed class SyntheticPackage : IPackage
++    {
++        public string Name { get; set; } = "synthetic";
++        public CUE4Parse.FileProvider.IFileProvider? Provider => null;
++        public string? ArchiveName => null;
++        public TypeMappings? Mappings => null;
++        public FPackageFileSummary Summary => default;
++        public FNameEntrySerialized[] NameMap { get; } = [new FNameEntrySerialized("None")];
++        public int ImportMapLength => 0;
++        public int ExportMapLength => 0;
++        public Lazy<UObject>[] ExportsLazy => [];
++        public bool IsFullyLoaded => true;
++        public bool CanDeserialize => true;
++        public bool HasFlags(EPackageFlags flags) => false;
++        public int GetExportIndex(string name, StringComparison comparisonType = StringComparison.Ordinal) => -1;
++        public ResolvedObject? ResolvePackageIndex(FPackageIndex? index) => null;
++    }
++}
+diff --git a/CUE4Parse.Tests/DynamicMeshSerializationTests.cs b/CUE4Parse.Tests/DynamicMeshSerializationTests.cs
+new file mode 100644
+index 00000000..9acb2829
+--- /dev/null
++++ b/CUE4Parse.Tests/DynamicMeshSerializationTests.cs
+@@ -0,0 +1,49 @@
++using CUE4Parse.MappingsProvider;
++using CUE4Parse.UE4.Assets;
++using CUE4Parse.UE4.Assets.Exports;
++using CUE4Parse.UE4.Assets.Exports.GeometryFramework;
++using CUE4Parse.UE4.Assets.Readers;
++using CUE4Parse.UE4.Objects.UObject;
++using CUE4Parse.UE4.Readers;
++using CUE4Parse.UE4.Versions;
++
++namespace CUE4Parse.Tests;
++
++public class DynamicMeshSerializationTests
++{
++    [Theory]
++    [InlineData(EGame.GAME_UE5_2)]
++    [InlineData(EGame.GAME_UE5_4)]
++    public void SkipsUnparsedMeshPayloadToExportEnd(EGame game)
++    {
++        // Empty tagged properties, no object guid, then synthetic mesh bytes.
++        var bytes = new byte[8 + 8 + 11];
++        for (var i = 16; i < bytes.Length; i++) bytes[i] = (byte)i;
++
++        var archive = new FAssetArchive(
++            new FByteArchive("synthetic", bytes, new VersionContainer(game)),
++            new SyntheticPackage());
++
++        new UDynamicMesh().Deserialize(archive, bytes.Length);
++
++        Assert.Equal(bytes.Length, archive.Position);
++    }
++
++    private sealed class SyntheticPackage : IPackage
++    {
++        public string Name { get; set; } = "synthetic";
++        public CUE4Parse.FileProvider.IFileProvider? Provider => null;
++        public string? ArchiveName => null;
++        public TypeMappings? Mappings => null;
++        public FPackageFileSummary Summary => default;
++        public FNameEntrySerialized[] NameMap { get; } = [new FNameEntrySerialized("None")];
++        public int ImportMapLength => 0;
++        public int ExportMapLength => 0;
++        public Lazy<UObject>[] ExportsLazy => [];
++        public bool IsFullyLoaded => true;
++        public bool CanDeserialize => true;
++        public bool HasFlags(EPackageFlags flags) => false;
++        public int GetExportIndex(string name, StringComparison comparisonType = StringComparison.Ordinal) => -1;
++        public ResolvedObject? ResolvePackageIndex(FPackageIndex? index) => null;
++    }
++}
+diff --git a/CUE4Parse.Tests/ImplicitObjectUnionTests.cs b/CUE4Parse.Tests/ImplicitObjectUnionTests.cs
+new file mode 100644
+index 00000000..890abd6c
+--- /dev/null
++++ b/CUE4Parse.Tests/ImplicitObjectUnionTests.cs
+@@ -0,0 +1,66 @@
++using CUE4Parse.MappingsProvider;
++using CUE4Parse.UE4.Assets;
++using CUE4Parse.UE4.Assets.Exports;
++using CUE4Parse.UE4.Assets.Readers;
++using CUE4Parse.UE4.Objects.Chaos;
++using CUE4Parse.UE4.Objects.Chaos.Union;
++using CUE4Parse.UE4.Objects.UObject;
++using CUE4Parse.UE4.Readers;
++using CUE4Parse.UE4.Versions;
++
++namespace CUE4Parse.Tests;
++
++public class ImplicitObjectUnionTests
++{
++    // UE 5.2 union layout: implicit object header, no children, float AABB, then the bHierarchyBuilt flag
++    private static byte[] Union52(bool hierarchyBuilt)
++    {
++        using var s = new MemoryStream();
++        s.Write(BitConverter.GetBytes(0));  // bIsConvex
++        s.Write(BitConverter.GetBytes(1));  // bDoCollide
++        s.WriteByte(0);                     // CollisionType
++        s.Write(BitConverter.GetBytes(0));  // MObjects count
++        for (var i = 0; i < 6; i++) s.Write(BitConverter.GetBytes((float) i)); // MLocalBoundingBox
++        s.Write(BitConverter.GetBytes(hierarchyBuilt ? 1 : 0));
++        return s.ToArray();
++    }
++
++    private static FChaosArchive Archive(byte[] bytes) =>
++        new(new FAssetArchive(new FByteArchive("synthetic", bytes, new VersionContainer(EGame.GAME_UE5_2)), new SyntheticPackage()));
++
++    [Fact]
++    public void ReadsUnionWithoutHierarchy()
++    {
++        var bytes = Union52(false);
++        var ar = Archive(bytes);
++        var union = new FImplicitObjectUnion();
++        union.Serialize(ar);
++
++        Assert.Equal(bytes.Length, ar.Position);
++        Assert.Empty(union.MObjects!);
++    }
++
++    [Fact]
++    public void LegacyHierarchyPayloadIsStillUnsupported()
++    {
++        Assert.Throws<NotImplementedException>(() => new FImplicitObjectUnion().Serialize(Archive(Union52(true))));
++    }
++
++    private sealed class SyntheticPackage : IPackage
++    {
++        public string Name { get; set; } = "synthetic";
++        public CUE4Parse.FileProvider.IFileProvider? Provider => null;
++        public string? ArchiveName => null;
++        public TypeMappings? Mappings => null;
++        public FPackageFileSummary Summary => default;
++        public FNameEntrySerialized[] NameMap { get; } = [new FNameEntrySerialized("None")];
++        public int ImportMapLength => 0;
++        public int ExportMapLength => 0;
++        public Lazy<UObject>[] ExportsLazy => [];
++        public bool IsFullyLoaded => true;
++        public bool CanDeserialize => true;
++        public bool HasFlags(EPackageFlags flags) => false;
++        public int GetExportIndex(string name, StringComparison comparisonType = StringComparison.Ordinal) => -1;
++        public ResolvedObject? ResolvePackageIndex(FPackageIndex? index) => null;
++    }
++}
+diff --git a/CUE4Parse.Tests/LandscapeMeshCollisionTests.cs b/CUE4Parse.Tests/LandscapeMeshCollisionTests.cs
+new file mode 100644
+index 00000000..97362adb
+--- /dev/null
++++ b/CUE4Parse.Tests/LandscapeMeshCollisionTests.cs
+@@ -0,0 +1,52 @@
++using CUE4Parse.MappingsProvider;
++using CUE4Parse.UE4.Assets;
++using CUE4Parse.UE4.Assets.Exports;
++using CUE4Parse.UE4.Assets.Exports.Component;
++using CUE4Parse.UE4.Assets.Readers;
++using CUE4Parse.UE4.Objects.UObject;
++using CUE4Parse.UE4.Readers;
++using CUE4Parse.UE4.Versions;
++
++namespace CUE4Parse.Tests;
++
++public class LandscapeMeshCollisionTests
++{
++    [Theory]
++    [InlineData(EGame.GAME_UE4_20)]
++    [InlineData(EGame.GAME_UE4_27)]
++    public void ReadsOwnCookedFlagAfterHeightfieldData(EGame game)
++    {
++        using var s = new MemoryStream();
++        void Int(int v) => s.Write(BitConverter.GetBytes(v));
++        Int(0); Int(0);         // tagged properties: None
++        Int(0);                 // no object guid
++        Int(1);                 // heightfield bCooked
++        Int(1); Int(3);         // cooked collision data: element size, count
++        s.Write([1, 2, 3]);
++        Int(1);                 // mesh collision bCooked (cooked mesh lives in the heightfield data)
++        var bytes = s.ToArray();
++
++        var archive = new FAssetArchive(new FByteArchive("synthetic", bytes, new VersionContainer(game)), new SyntheticPackage());
++        new ULandscapeMeshCollisionComponent().Deserialize(archive, bytes.Length);
++
++        Assert.Equal(bytes.Length, archive.Position);
++    }
++
++    private sealed class SyntheticPackage : IPackage
++    {
++        public string Name { get; set; } = "synthetic";
++        public CUE4Parse.FileProvider.IFileProvider? Provider => null;
++        public string? ArchiveName => null;
++        public TypeMappings? Mappings => null;
++        public FPackageFileSummary Summary => default;
++        public FNameEntrySerialized[] NameMap { get; } = [new FNameEntrySerialized("None")];
++        public int ImportMapLength => 0;
++        public int ExportMapLength => 0;
++        public Lazy<UObject>[] ExportsLazy => [];
++        public bool IsFullyLoaded => true;
++        public bool CanDeserialize => true;
++        public bool HasFlags(EPackageFlags flags) => false;
++        public int GetExportIndex(string name, StringComparison comparisonType = StringComparison.Ordinal) => -1;
++        public ResolvedObject? ResolvePackageIndex(FPackageIndex? index) => null;
++    }
++}
+diff --git a/CUE4Parse.Tests/SerializedEnumPropertyTests.cs b/CUE4Parse.Tests/SerializedEnumPropertyTests.cs
+new file mode 100644
+index 00000000..11a86a27
+--- /dev/null
++++ b/CUE4Parse.Tests/SerializedEnumPropertyTests.cs
+@@ -0,0 +1,70 @@
++using CUE4Parse.MappingsProvider;
++using CUE4Parse.UE4.Assets.Objects;
++using CUE4Parse.UE4.Assets.Objects.Properties;
++using CUE4Parse.UE4.Assets.Readers;
++using CUE4Parse.UE4.Objects.UObject;
++using CUE4Parse.UE4.Readers;
++
++namespace CUE4Parse.Tests;
++
++// Mappings built from a package's own class (SerializedStruct) must read an FEnumProperty value
++// with the width of its UnderlyingProp, not always one byte.
++public class SerializedEnumPropertyTests
++{
++    private static FEnumProperty EnumProp(FNumericProperty? underlying, int elementSize) => new()
++    {
++        Name = new FName("Value"),
++        ElementSize = elementSize,
++        Enum = new FPackageIndex(),
++        UnderlyingProp = underlying,
++    };
++
++    // Reads one unversioned-style raw value; returns the read text and how many bytes were consumed
++    private static (string Value, long Read) ReadRaw(PropertyType type, byte[] bytes)
++    {
++        var Ar = new FAssetArchive(new FByteArchive("synthetic", bytes), null);
++        var tag = new FPropertyTag(Ar, new PropertyInfo(0, "Value", type), ReadType.RAW);
++        return (((EnumProperty) tag.Tag!).Value.Text, Ar.Position);
++    }
++
++    [Fact]
++    public void UInt16UnderlyingReadsTwoBytes()
++    {
++        var type = new PropertyType(EnumProp(new FUInt16Property { ElementSize = 2 }, 2));
++        Assert.Equal("UInt16Property", type.InnerType?.Type);
++
++        // 0x012C = 300, followed by a sentinel byte that must stay unread
++        var (value, read) = ReadRaw(type, [0x2C, 0x01, 0xAA]);
++        Assert.Equal("300", value);
++        Assert.Equal(2, read);
++    }
++
++    [Fact]
++    public void Int64UnderlyingReadsEightBytes()
++    {
++        var type = new PropertyType(EnumProp(new FInt64Property { ElementSize = 8 }, 8));
++        var (value, read) = ReadRaw(type, [0x05, 0, 0, 0, 0, 0, 0, 0, 0xAA]);
++        Assert.Equal("5", value);
++        Assert.Equal(8, read);
++    }
++
++    [Fact]
++    public void ByteUnderlyingStillReadsOneByte()
++    {
++        var type = new PropertyType(EnumProp(new FByteProperty { ElementSize = 1, Enum = new FPackageIndex() }, 1));
++        // the inner type is a plain number: no enum of its own, so the outer enum maps the index
++        Assert.Equal("ByteProperty", type.InnerType?.Type);
++        Assert.Null(type.InnerType?.EnumName);
++        Assert.Null(type.InnerType?.Enum);
++        var (value, read) = ReadRaw(type, [0x2F, 0xAA]);
++        Assert.Equal("47", value);
++        Assert.Equal(1, read);
++    }
++
++    [Fact]
++    public void MissingUnderlyingFallsBackToElementSize()
++    {
++        Assert.Null(new PropertyType(EnumProp(null, 1)).InnerType);
++        Assert.Equal("IntProperty", new PropertyType(EnumProp(null, 4)).InnerType?.Type);
++    }
++}
+diff --git a/CUE4Parse.Tests/TaggedContainerPropertyTests.cs b/CUE4Parse.Tests/TaggedContainerPropertyTests.cs
+new file mode 100644
+index 00000000..21628695
+--- /dev/null
++++ b/CUE4Parse.Tests/TaggedContainerPropertyTests.cs
+@@ -0,0 +1,182 @@
++using CUE4Parse.MappingsProvider;
++using CUE4Parse.UE4.Assets;
++using CUE4Parse.UE4.Assets.Exports;
++using CUE4Parse.UE4.Assets.Objects;
++using CUE4Parse.UE4.Assets.Objects.Properties;
++using CUE4Parse.UE4.Assets.Readers;
++using CUE4Parse.UE4.Objects.Core.Math;
++using CUE4Parse.UE4.Objects.Core.Misc;
++using CUE4Parse.UE4.Objects.MovieScene;
++using CUE4Parse.UE4.Objects.UObject;
++using CUE4Parse.UE4.Readers;
++using CUE4Parse.UE4.Versions;
++
++namespace CUE4Parse.Tests;
++
++// Synthetic tagged (versioned) property streams as a UE4 cooker writes them.
++public class TaggedContainerPropertyTests
++{
++    private static readonly string[] Names =
++    [
++        "None", "SetProperty", "ByteProperty", "AllowedTypes", "EType::First", "EType::Second",
++        "StructProperty", "Vector_NetQuantize", "Location", "FloatProperty", "X", "Y", "Z",
++        "MovieSceneFloatValue", "Value", "MapProperty", "SubSectionRanges", "ArrayProperty", "Values", "Scales", "OwnerClass"
++    ];
++
++    private sealed class Writer
++    {
++        private readonly MemoryStream _s = new();
++        public Writer Name(string n) { Int(Array.IndexOf(Names, n)); return Int(0); }
++        public Writer Int(int v) { _s.Write(BitConverter.GetBytes(v)); return this; }
++        public Writer Float(float v) { _s.Write(BitConverter.GetBytes(v)); return this; }
++        public Writer Byte(byte v) { _s.WriteByte(v); return this; }
++        public Writer Bytes(byte[] b) { _s.Write(b); return this; }
++        public Writer Guid() => Bytes(new byte[16]);
++        public int Length => (int) _s.Length;
++        public byte[] ToArray() => _s.ToArray();
++
++        // Name, Type, Size, ArrayIndex, type data, HasPropertyGuid
++        public Writer Tag(string name, string type, int size, Action<Writer> tagData)
++        {
++            Name(name).Name(type).Int(size).Int(0);
++            tagData(this);
++            return Byte(0);
++        }
++
++        public Writer Float(string name, float v) => Tag(name, "FloatProperty", 4, _ => { }).Float(v);
++    }
++
++    private static FAssetArchive Archive(byte[] bytes, EGame game, TypeMappings? mappings = null) =>
++        new(new FByteArchive("synthetic", bytes, new VersionContainer(game)), new SyntheticPackage { Mappings = mappings });
++
++    private static FPropertyTag ReadTag(byte[] bytes, EGame game, out FAssetArchive ar)
++    {
++        ar = Archive(bytes, game);
++        return new FPropertyTag(ar, true);
++    }
++
++    [Fact]
++    public void TaggedSetOfEnumBytesReadsNames()
++    {
++        var w = new Writer().Tag("AllowedTypes", "SetProperty", 24, t => t.Name("ByteProperty"))
++            .Int(0).Int(2).Name("EType::First").Name("EType::Second");
++        var tag = ReadTag(w.ToArray(), EGame.GAME_UE4_25, out var ar);
++
++        var set = Assert.IsType<SetProperty>(tag.Tag).Value;
++        Assert.Equal(["EType::First", "EType::Second"], set.Properties.Select(p => Assert.IsType<EnumProperty>(p).Value.Text));
++        Assert.Equal(w.Length, ar.Position);
++    }
++
++    [Fact]
++    public void TaggedSetOfEnumBytesWithElementsToRemoveReadsNames()
++    {
++        // A level instance overriding its archetype: one element removed, one added
++        var w = new Writer().Tag("AllowedTypes", "SetProperty", 24, t => t.Name("ByteProperty"))
++            .Int(1).Name("EType::First").Int(1).Name("EType::Second");
++        var tag = ReadTag(w.ToArray(), EGame.GAME_UE4_25, out _);
++
++        var set = Assert.IsType<SetProperty>(tag.Tag).Value;
++        Assert.Equal("EType::Second", Assert.IsType<EnumProperty>(Assert.Single(set.Properties)).Value.Text);
++    }
++
++    [Fact]
++    public void TaggedSetOfPlainBytesStillReadsBytes()
++    {
++        var w = new Writer().Tag("AllowedTypes", "SetProperty", 10, t => t.Name("ByteProperty"))
++            .Int(0).Int(2).Byte(3).Byte(7);
++        var tag = ReadTag(w.ToArray(), EGame.GAME_UE4_25, out _);
++
++        var set = Assert.IsType<SetProperty>(tag.Tag).Value;
++        Assert.Equal([3, 7], set.Properties.Select(p => (int) Assert.IsType<ByteProperty>(p).Value));
++    }
++
++    [Theory]
++    [InlineData(EGame.GAME_UE4_20)]
++    [InlineData(EGame.GAME_UE4_27)]
++    public void TaggedVectorNetQuantizeReadsTaggedComponents(EGame game)
++    {
++        var body = new Writer().Float("X", 1).Float("Y", 2).Float("Z", 3).Name("None");
++        var w = new Writer().Tag("Location", "StructProperty", body.Length, t => t.Name("Vector_NetQuantize").Guid()).Bytes(body.ToArray());
++        var tag = ReadTag(w.ToArray(), game, out _);
++
++        var fallback = Assert.IsType<FStructFallback>(Assert.IsType<StructProperty>(tag.Tag).Value.StructType);
++        Assert.Equal(3f, fallback.GetOrDefault<float>("Z"));
++    }
++
++    [Fact]
++    public void MovieSceneFloatValueBeforeSerializeFloatChannelIsTagged()
++    {
++        // UE 4.20: TArray<FMovieSceneFloatValue> with an inner struct tag, elements saved as tagged properties
++        var element = new Writer().Float("Value", 5).Name("None");
++        var innerTag = new Writer().Tag("Values", "StructProperty", element.Length, t => t.Name("MovieSceneFloatValue").Guid());
++        var size = 4 + innerTag.Length + element.Length;
++        var w = new Writer().Tag("Values", "ArrayProperty", size, t => t.Name("StructProperty"))
++            .Int(1).Bytes(innerTag.ToArray()).Bytes(element.ToArray());
++        var tag = ReadTag(w.ToArray(), EGame.GAME_UE4_20, out _);
++
++        var array = Assert.IsType<ArrayProperty>(tag.Tag).Value;
++        var value = Assert.IsType<FStructFallback>(Assert.IsType<StructProperty>(Assert.Single(array.Properties)).Value.StructType);
++        Assert.Equal(5f, value.GetOrDefault<float>("Value"));
++    }
++
++    [Fact]
++    public void MovieSceneFloatValueFromSerializeFloatChannelIsBinary()
++    {
++        var w = new Writer().Tag("Value", "StructProperty", 4 + 2 + 17, t => t.Name("MovieSceneFloatValue").Guid())
++            .Float(5).Byte(0).Byte(0).Float(0).Float(0).Byte(0).Float(0).Float(0);
++        var tag = ReadTag(w.ToArray(), EGame.GAME_UE4_22, out var ar);
++
++        Assert.IsType<FMovieSceneValue<float>>(Assert.IsType<StructProperty>(tag.Tag).Value.StructType);
++        Assert.Equal(w.Length, ar.Position);
++    }
++
++    [Fact]
++    public void TaggedSubSectionRangesMapUsesGuidKeys()
++    {
++        var range = new byte[] { 1, 0, 0, 0, 0, 0, 0x0F, 0xFA, 0x15, 0x00 };
++        var w = new Writer().Tag("SubSectionRanges", "MapProperty", 8 + 16 + range.Length, t => t.Name("StructProperty").Name("StructProperty"))
++            .Int(0).Int(1).Guid().Bytes(range);
++        var tag = ReadTag(w.ToArray(), EGame.GAME_UE4_25, out _);
++
++        var (key, value) = Assert.Single(Assert.IsType<MapProperty>(tag.Tag).Value.Properties);
++        Assert.IsType<FGuid>(Assert.IsType<StructProperty>(key).Value.StructType);
++        Assert.IsType<FMovieSceneFrameRange>(Assert.IsType<StructProperty>(value!).Value.StructType);
++    }
++
++    [Fact]
++    public void TaggedMapTakesStructAndEnumTypesFromOwner()
++    {
++        // TMap<EType, FVector2D> Scales declared on the owner; the UE4 map tag names only ByteProperty and StructProperty
++        var scales = new PropertyType("MapProperty", innerType: new PropertyType("ByteProperty", enumName: "EType"), valueType: new PropertyType("StructProperty", "Vector2D"));
++        var owner = new Struct(null, "OwnerClass", null, new Dictionary<int, PropertyInfo> { [0] = new(0, "Scales", scales) }, 1);
++        var mappings = new TypeMappings(new Dictionary<string, Struct> { ["OwnerClass"] = owner }, new Dictionary<string, Dictionary<long, string>>());
++
++        var w = new Writer().Tag("Scales", "MapProperty", 8 + 8 + 8, t => t.Name("ByteProperty").Name("StructProperty"))
++            .Int(0).Int(1).Name("EType::Second").Float(0.5f).Float(0.25f).Name("None");
++        var ar = Archive(w.ToArray(), EGame.GAME_UE4_26, mappings);
++        var fallback = new FStructFallback(ar, "OwnerClass");
++
++        var (key, value) = Assert.Single(fallback.GetOrDefault<UScriptMap>("Scales").Properties);
++        Assert.Equal("EType::Second", Assert.IsType<EnumProperty>(key).Value.Text);
++        Assert.Equal(0.25f, (float) Assert.IsType<FVector2D>(Assert.IsType<StructProperty>(value!).Value.StructType).Y);
++        Assert.Equal(w.Length, ar.Position);
++    }
++
++    private sealed class SyntheticPackage : IPackage
++    {
++        public string Name { get; set; } = "synthetic";
++        public CUE4Parse.FileProvider.IFileProvider? Provider => null;
++        public string? ArchiveName => null;
++        public TypeMappings? Mappings { get; init; }
++        public FPackageFileSummary Summary => default;
++        public FNameEntrySerialized[] NameMap { get; } = Names.Select(n => new FNameEntrySerialized(n)).ToArray();
++        public int ImportMapLength => 0;
++        public int ExportMapLength => 0;
++        public Lazy<UObject>[] ExportsLazy => [];
++        public bool IsFullyLoaded => true;
++        public bool CanDeserialize => true;
++        public bool HasFlags(EPackageFlags flags) => false;
++        public int GetExportIndex(string name, StringComparison comparisonType = StringComparison.Ordinal) => -1;
++        public ResolvedObject? ResolvePackageIndex(FPackageIndex? index) => null;
++    }
++}
+diff --git a/CUE4Parse.Tests/UE4/Assets/Exports/GroomSerializationTests.cs b/CUE4Parse.Tests/UE4/Assets/Exports/GroomSerializationTests.cs
+new file mode 100644
+index 00000000..8e92e774
+--- /dev/null
++++ b/CUE4Parse.Tests/UE4/Assets/Exports/GroomSerializationTests.cs
+@@ -0,0 +1,52 @@
++using CUE4Parse.UE4.Assets.Exports.HairStrands;
++using CUE4Parse.UE4.Assets.Readers;
++using CUE4Parse.UE4.Readers;
++using CUE4Parse.UE4.Versions;
++
++namespace CUE4Parse.Tests.UE4.Assets.Exports;
++
++public class GroomSerializationTests
++{
++    [Theory]
++    [InlineData(EGame.GAME_UE5_5, 8)]
++    [InlineData(EGame.GAME_UE5_6, 12)]
++    [InlineData(EGame.GAME_UE5_7, 12)]
++    public void BindingPlatformDataReadsVersionedMinimumLod(EGame game, int expectedSize)
++    {
++        // Empty simulation roots, empty cards roots, and UE 5.6+ TargetMeshMinLOD.
++        var data = new byte[expectedSize];
++        if (expectedSize == 12)
++            BitConverter.GetBytes(7).CopyTo(data, 8);
++        using var baseArchive = new FByteArchive("synthetic-groom-platform-data", data, new VersionContainer(game));
++        var archive = new FAssetArchive(baseArchive, null);
++
++        var platformData = new UGroomBindingAsset.FHairGroupPlatformData(archive, EGroomClassStripFlags.CDSF_StrandsStripped);
++
++        Assert.Equal(expectedSize, archive.Position);
++        Assert.Equal(game >= EGame.GAME_UE5_6 ? 7 : -1, platformData.TargetMeshMinLOD);
++    }
++
++    [Theory]
++    [InlineData(EGame.GAME_UE5_5, 65, 0, false)]
++    [InlineData(EGame.GAME_UE5_6, 73, 0, true)]
++    [InlineData(EGame.GAME_UE5_7, 77, 2, true)]
++    public void GroomMeshBulkDataReadsVersionedHeader(EGame game, int expectedSize, uint expectedUvs, bool hasVertexColors)
++    {
++        // Four empty arrays before UE 5.6 and five after it, the 49-byte LWC FBox, then UE 5.7 NumUVs and the vertex-color flag.
++        var data = new byte[expectedSize];
++        if (game >= EGame.GAME_UE5_7)
++            BitConverter.GetBytes(expectedUvs).CopyTo(data, 69);
++        if (game >= EGame.GAME_UE5_6)
++            BitConverter.GetBytes(1).CopyTo(data, expectedSize - 4);
++        using var baseArchive = new FByteArchive("synthetic-groom-mesh", data, new VersionContainer(game));
++        var archive = new FAssetArchive(baseArchive, null);
++
++        var mesh = new UGroomAsset.FHairGroupPlatformData.FHairMeshesBulkData(archive);
++
++        Assert.Equal(expectedSize, archive.Position);
++        Assert.Equal(expectedUvs, mesh.Header.NumUVs);
++        Assert.Equal(hasVertexColors, mesh.Header.bVertexColor);
++        Assert.Empty(mesh.VertexColors);
++    }
++
++}
+diff --git a/CUE4Parse/MappingsProvider/MappingsSchema.cs b/CUE4Parse/MappingsProvider/MappingsSchema.cs
+index e01d80ed..f15cc6f1 100644
+--- a/CUE4Parse/MappingsProvider/MappingsSchema.cs
++++ b/CUE4Parse/MappingsProvider/MappingsSchema.cs
+@@ -156,6 +156,11 @@ public PropertyType(FProperty prop)
+                 break;
+             case FEnumProperty e:
+                 ApplyEnum(prop, e.Enum);
++                // The underlying numeric property decides how many bytes the value takes
++                // (e.g. an enum class : uint16 is 2 bytes); the size switch in ApplyEnum is only a fallback.
++                // Only its type name is used: a serialized underlying ByteProperty can reference the enum
++                // too, and reading it as an enum would return a name instead of the index.
++                if (e.UnderlyingProp != null) InnerType = new PropertyType(e.UnderlyingProp.GetType().Name[1..]);
+                 break;
+             case FMapProperty map:
+                 var key = map.KeyProp;
+diff --git a/CUE4Parse/UE4/Assets/Exports/Component/ActorComponent.cs b/CUE4Parse/UE4/Assets/Exports/Component/ActorComponent.cs
+index 899f3997..bca0d5b8 100644
+--- a/CUE4Parse/UE4/Assets/Exports/Component/ActorComponent.cs
++++ b/CUE4Parse/UE4/Assets/Exports/Component/ActorComponent.cs
+@@ -172,7 +172,6 @@ public class UInteractiveFoliageComponent : UStaticMeshComponent;
+ public class UInterpToMovementComponent : UMovementComponent;
+ public class ULODSyncComponent : UActorComponent;
+ public class ULandscapeGizmoRenderComponent : UPrimitiveComponent;
+-public class ULandscapeMeshCollisionComponent : ULandscapeHeightfieldCollisionComponent;
+ public class ULandscapeMeshProxyComponent : UStaticMeshComponent;
+ public class ULevelInstanceComponent : USceneComponent;
+ public class ULightmassPortalComponent : USceneComponent;
+diff --git a/CUE4Parse/UE4/Assets/Exports/Component/Landscape/ULandscapeMeshCollisionComponent.cs b/CUE4Parse/UE4/Assets/Exports/Component/Landscape/ULandscapeMeshCollisionComponent.cs
+new file mode 100644
+index 00000000..11d80367
+--- /dev/null
++++ b/CUE4Parse/UE4/Assets/Exports/Component/Landscape/ULandscapeMeshCollisionComponent.cs
+@@ -0,0 +1,23 @@
++using CUE4Parse.UE4.Assets.Objects;
++using CUE4Parse.UE4.Assets.Exports.Component.Landscape;
++using CUE4Parse.UE4.Assets.Readers;
++using CUE4Parse.UE4.Versions;
++
++namespace CUE4Parse.UE4.Assets.Exports.Component;
++
++public class ULandscapeMeshCollisionComponent : ULandscapeHeightfieldCollisionComponent
++{
++    public override void Deserialize(FAssetArchive Ar, long validPos)
++    {
++        base.Deserialize(Ar, validPos);
++
++        if (Ar.Ver < EUnrealEngineObjectUE4Version.ADD_COOKED_TO_LANDSCAPE) return;
++
++        // The cooked triangle mesh is saved by the heightfield base class; this flag follows it
++        var bCooked = Ar.ReadBoolean();
++        if (!bCooked && Ar.Ver >= EUnrealEngineObjectUE4Version.LANDSCAPE_COLLISION_DATA_COOKING)
++        {
++            new FWordBulkData(Ar); // CollisionXYOffsetData, uncooked content only
++        }
++    }
++}
+diff --git a/CUE4Parse/UE4/Assets/Exports/Datasmith/UDatasmithScene.cs b/CUE4Parse/UE4/Assets/Exports/Datasmith/UDatasmithScene.cs
+new file mode 100644
+index 00000000..5c6682fc
+--- /dev/null
++++ b/CUE4Parse/UE4/Assets/Exports/Datasmith/UDatasmithScene.cs
+@@ -0,0 +1,21 @@
++using CUE4Parse.UE4.Assets.Readers;
++using CUE4Parse.UE4.Objects.Engine;
++using CUE4Parse.UE4.Versions;
++
++namespace CUE4Parse.UE4.Assets.Exports.Datasmith;
++
++public class UDatasmithScene : UObject
++{
++    public FStripDataFlags StripFlags;
++
++    public override void Deserialize(FAssetArchive Ar, long validPos)
++    {
++        base.Deserialize(Ar, validPos);
++
++        // Strip flags control the editor-only scene bulk data, which cooked packages do not contain
++        if (FEnterpriseObjectVersion.Get(Ar) >= FEnterpriseObjectVersion.Type.FixSerializationOfBulkAndExtraData)
++        {
++            StripFlags = new FStripDataFlags(Ar);
++        }
++    }
++}
+diff --git a/CUE4Parse/UE4/Assets/Exports/GeometryFramework/UDynamicMesh.cs b/CUE4Parse/UE4/Assets/Exports/GeometryFramework/UDynamicMesh.cs
+index ea5c2829..23ad51d6 100644
+--- a/CUE4Parse/UE4/Assets/Exports/GeometryFramework/UDynamicMesh.cs
++++ b/CUE4Parse/UE4/Assets/Exports/GeometryFramework/UDynamicMesh.cs
+@@ -1,6 +1,5 @@
+ using CUE4Parse.UE4.Assets.Readers;
+ using CUE4Parse.UE4.Readers;
+-using CUE4Parse.UE4.Versions;
+ 
+ namespace CUE4Parse.UE4.Assets.Exports.GeometryFramework;
+ 
+@@ -10,16 +9,9 @@ public override void Deserialize(FAssetArchive Ar, long validPos)
+     {
+         base.Deserialize(Ar, validPos);
+ 
+-        if (FUE5MainStreamObjectVersion.Get(Ar) < FUE5MainStreamObjectVersion.Type.DynamicMeshCompactedSerialization)
+-        {
+-            //SerializeInternal<InitialVersion>(Ar, nullptr);
+-            //Mesh = new FDynamicMesh3(Ar, options);
+-        }
+-        else
+-        {
+-            var options = new FDynamicMesh3SerializationOptions(Ar);
+-            //Mesh = new FDynamicMesh3(Ar);
+-        }
++        // The FDynamicMesh3 payload is not exposed yet. Consume it so following exports
++        // start at the correct offset, regardless of which serialization variant is used.
++        Ar.Position = validPos;
+     }
+ 
+     // Encapsulates our serialization options, and selects the serialization variant for a given set of options. 
+diff --git a/CUE4Parse/UE4/Assets/Exports/UObject.cs b/CUE4Parse/UE4/Assets/Exports/UObject.cs
+index 252d4e4b..397e5fb6 100644
+--- a/CUE4Parse/UE4/Assets/Exports/UObject.cs
++++ b/CUE4Parse/UE4/Assets/Exports/UObject.cs
+@@ -209,7 +209,7 @@ public virtual void Deserialize(FAssetArchive Ar, long validPos)
+                 }
+             }
+ 
+-            DeserializePropertiesTagged(Properties = [], Ar, false);
++            DeserializePropertiesTagged(Properties = [], Ar, false, () => Class?.Object?.Value as UStruct);
+         }
+ 
+         if (Ar.Game >= GAME_UE4_0 && !Flags.HasFlag(EObjectFlags.RF_ClassDefaultObject))
+@@ -401,7 +401,7 @@ internal static void DeserializePropertiesUnversioned(List<FPropertyTag> propert
+         } while (it.MoveNext());
+     }
+ 
+-    internal static void DeserializePropertiesTagged(List<FPropertyTag> properties, FAssetArchive Ar, bool isStruct)
++    internal static void DeserializePropertiesTagged(List<FPropertyTag> properties, FAssetArchive Ar, bool isStruct, Func<UStruct?>? owner = null)
+     {
+         if (!isStruct && Ar.Ver >= EUnrealEngineObjectUE5Version.PROPERTY_TAG_EXTENSION_AND_OVERRIDABLE_SERIALIZATION)
+         {
+@@ -415,7 +415,7 @@ internal static void DeserializePropertiesTagged(List<FPropertyTag> properties,
+ 
+         while (true)
+         {
+-            var tag = new FPropertyTag(Ar, true);
++            var tag = new FPropertyTag(Ar, true, owner);
+             if (tag.Name.IsNone)
+                 break;
+             properties.Add(tag);
+diff --git a/CUE4Parse/UE4/Assets/Objects/FPropertyTag.cs b/CUE4Parse/UE4/Assets/Objects/FPropertyTag.cs
+index 6623c063..29f231c9 100644
+--- a/CUE4Parse/UE4/Assets/Objects/FPropertyTag.cs
++++ b/CUE4Parse/UE4/Assets/Objects/FPropertyTag.cs
+@@ -131,7 +131,7 @@ public FPropertyTag(FAssetArchive Ar, PropertyInfo info, ReadType type)
+         Size = (int) (Ar.Position - pos);
+     }
+ 
+-    public FPropertyTag(FAssetArchive Ar, bool readData)
++    public FPropertyTag(FAssetArchive Ar, bool readData, Func<UStruct?>? owner = null)
+     {
+         Name = Ar.ReadFName();
+         if (Name.IsNone)
+@@ -177,6 +177,17 @@ public FPropertyTag(FAssetArchive Ar, bool readData)
+             Size = Ar.Read<int>();
+             ArrayIndex = Ar.Read<int>();
+             TagData = new FPropertyTagData(Ar, PropertyType.Text, Name.Text);
++            if (readData && owner is not null && TaggedContainerTypes.NeedsResolve(TagData))
++            {
++                try
++                {
++                    TaggedContainerTypes.Resolve(TagData, Name.Text, owner(), Ar.Owner?.Mappings);
++                }
++                catch (Exception e)
++                {
++                    Log.Debug(e, "Couldn't resolve container types of tagged property {0}", Name.Text);
++                }
++            }
+             if (Ar.Ver >= EUnrealEngineObjectUE4Version.PROPERTY_GUID_IN_PROPERTY_TAG)
+             {
+                 HasPropertyGuid = Ar.ReadFlag();
+diff --git a/CUE4Parse/UE4/Assets/Objects/FScriptStruct.cs b/CUE4Parse/UE4/Assets/Objects/FScriptStruct.cs
+index 2f3a51c1..e7e05637 100644
+--- a/CUE4Parse/UE4/Assets/Objects/FScriptStruct.cs
++++ b/CUE4Parse/UE4/Assets/Objects/FScriptStruct.cs
+@@ -139,6 +139,9 @@ public FScriptStruct(FAssetArchive Ar, string? structName, UStruct? struc, ReadT
+             "MovieSceneEventParameters" => type == ReadType.ZERO ? new FMovieSceneEventParameters() : new FMovieSceneEventParameters(Ar),
+             "MovieSceneFloatChannel" => type == ReadType.ZERO ? new FMovieSceneChannel<float>() : new FMovieSceneChannel<float>(Ar),
+             "MovieSceneDoubleChannel" => type == ReadType.ZERO ? new FMovieSceneChannel<double>() : new FMovieSceneChannel<double>(Ar),
++            // Before FSequencerObjectVersion::SerializeFloatChannel the value struct had no native serializer and was saved as tagged properties
++            "MovieSceneFloatValue" when type != ReadType.ZERO && !Ar.HasUnversionedProperties && FSequencerObjectVersion.Get(Ar) < FSequencerObjectVersion.Type.SerializeFloatChannel
++                => new FStructFallback(Ar, structName),
+             "MovieSceneFloatValue" => type == ReadType.ZERO ? new FMovieSceneValue<float>() : new FMovieSceneValue<float>(Ar, Ar.Read<float>(), true),
+             "MovieSceneDoubleValue" => type == ReadType.ZERO ? new FMovieSceneValue<double>() : new FMovieSceneValue<double>(Ar, Ar.Read<double>(), true),
+             "MovieSceneFrameRange" => type == ReadType.ZERO ? new FMovieSceneFrameRange() : Ar.Read<FMovieSceneFrameRange>(),
+@@ -189,10 +192,10 @@ public FScriptStruct(FAssetArchive Ar, string? structName, UStruct? struc, ReadT
+             "Vector4" => type == ReadType.ZERO ? new FVector4() : new FVector4(Ar),
+             "Vector4f" => type == ReadType.ZERO ? new TIntVector4<float>() : Ar.Read<TIntVector4<float>>(),
+             "Vector4d" => type == ReadType.ZERO ? new TIntVector4<double>() : Ar.Read<TIntVector4<double>>(),
+-            "Vector_NetQuantize" => type == ReadType.ZERO ? new FVector() : Ar.Versions["Vector_NetQuantize_AsStruct"] ? new FStructFallback(Ar, "Vector_NetQuantize") : new FVector(Ar),
+-            "Vector_NetQuantize10" => type == ReadType.ZERO ? new FVector() : Ar.Versions["Vector_NetQuantize_AsStruct"] ? new FStructFallback(Ar, "Vector_NetQuantize") : new FVector(Ar),
+-            "Vector_NetQuantize100" => type == ReadType.ZERO ? new FVector() : Ar.Versions["Vector_NetQuantize_AsStruct"] ? new FStructFallback(Ar, "Vector_NetQuantize") : new FVector(Ar),
+-            "Vector_NetQuantizeNormal" => type == ReadType.ZERO ? new FVector() : Ar.Versions["Vector_NetQuantize_AsStruct"] ? new FStructFallback(Ar, "Vector_NetQuantize") : new FVector(Ar),
++            "Vector_NetQuantize" => type == ReadType.ZERO ? new FVector() : Ar.Versions["Vector_NetQuantize_AsStruct"] || !Ar.HasUnversionedProperties ? new FStructFallback(Ar, "Vector_NetQuantize") : new FVector(Ar),
++            "Vector_NetQuantize10" => type == ReadType.ZERO ? new FVector() : Ar.Versions["Vector_NetQuantize_AsStruct"] || !Ar.HasUnversionedProperties ? new FStructFallback(Ar, "Vector_NetQuantize") : new FVector(Ar),
++            "Vector_NetQuantize100" => type == ReadType.ZERO ? new FVector() : Ar.Versions["Vector_NetQuantize_AsStruct"] || !Ar.HasUnversionedProperties ? new FStructFallback(Ar, "Vector_NetQuantize") : new FVector(Ar),
++            "Vector_NetQuantizeNormal" => type == ReadType.ZERO ? new FVector() : Ar.Versions["Vector_NetQuantize_AsStruct"] || !Ar.HasUnversionedProperties ? new FStructFallback(Ar, "Vector_NetQuantize") : new FVector(Ar),
+             "ClothLODDataCommon" => type == ReadType.ZERO ? new FClothLODDataCommon() : new FClothLODDataCommon(Ar),
+             "ClothLODData" => type == ReadType.ZERO ? new FClothLODData() : new FClothLODData(Ar),
+             "ClothTetherData" => type == ReadType.ZERO ? new FClothTetherData() : new FClothTetherData(Ar),
+diff --git a/CUE4Parse/UE4/Assets/Objects/FStructFallback.cs b/CUE4Parse/UE4/Assets/Objects/FStructFallback.cs
+index 8a6fe1c2..736a0361 100644
+--- a/CUE4Parse/UE4/Assets/Objects/FStructFallback.cs
++++ b/CUE4Parse/UE4/Assets/Objects/FStructFallback.cs
+@@ -26,7 +26,7 @@ public FStructFallback(FAssetArchive Ar, UStruct? structType = null)
+         }
+         else
+         {
+-            UObject.DeserializePropertiesTagged(Properties = [], Ar, true);
++            UObject.DeserializePropertiesTagged(Properties = [], Ar, true, structType is null ? null : () => structType);
+         }
+     }
+ 
+diff --git a/CUE4Parse/UE4/Assets/Objects/Properties/FPropertyTagType.cs b/CUE4Parse/UE4/Assets/Objects/Properties/FPropertyTagType.cs
+index b5fce04a..f73c0730 100644
+--- a/CUE4Parse/UE4/Assets/Objects/Properties/FPropertyTagType.cs
++++ b/CUE4Parse/UE4/Assets/Objects/Properties/FPropertyTagType.cs
+@@ -182,7 +182,7 @@ private IList CreateList(Type type, List<FPropertyTagType> properties)
+                     FOW2ObjectsArchive OW2Ar => new FOW2ObjectProperty(OW2Ar, type),
+                     _ => new ObjectProperty(Ar, type),
+                 },
+-            "SetProperty" => new SetProperty(Ar, tagData, type),
++            "SetProperty" => new SetProperty(Ar, tagData, type, size),
+             "SoftClassProperty" or "SoftObjectProperty" => new SoftObjectProperty(Ar, type),
+             "StrProperty" => new StrProperty(Ar, type),
+             "AnsiStrProperty" => new AnsiStrProperty(Ar, type),
+diff --git a/CUE4Parse/UE4/Assets/Objects/Properties/SetProperty.cs b/CUE4Parse/UE4/Assets/Objects/Properties/SetProperty.cs
+index 2a8d0e82..33a433a6 100644
+--- a/CUE4Parse/UE4/Assets/Objects/Properties/SetProperty.cs
++++ b/CUE4Parse/UE4/Assets/Objects/Properties/SetProperty.cs
+@@ -8,12 +8,12 @@ public class SetProperty : FPropertyTagType<UScriptSet>
+ {
+     public SetProperty(UScriptSet value) => Value = value;
+ 
+-    public SetProperty(FAssetArchive Ar, FPropertyTagData? tagData, ReadType type)
++    public SetProperty(FAssetArchive Ar, FPropertyTagData? tagData, ReadType type, int size = 0)
+     {
+         Value = type switch
+         {
+             ReadType.ZERO => new UScriptSet(),
+-            _ => new UScriptSet(Ar, tagData, type)
++            _ => new UScriptSet(Ar, tagData, type, size)
+         };
+     }
+ }
+diff --git a/CUE4Parse/UE4/Assets/Objects/TaggedContainerTypes.cs b/CUE4Parse/UE4/Assets/Objects/TaggedContainerTypes.cs
+new file mode 100644
+index 00000000..9ea1e84a
+--- /dev/null
++++ b/CUE4Parse/UE4/Assets/Objects/TaggedContainerTypes.cs
+@@ -0,0 +1,133 @@
++using CUE4Parse.MappingsProvider;
++using CUE4Parse.UE4.Objects.UObject;
++
++namespace CUE4Parse.UE4.Assets.Objects;
++
++/// <summary>
++/// Tagged (pre PROPERTY_TAG_COMPLETE_TYPE_NAME) set and map tags name only the inner property types, not the struct
++/// or enum behind a StructProperty or ByteProperty key, element or value. Unreal takes them from the owning
++/// property definition; this looks that definition up in the owner struct (serialized FProperty or legacy
++/// UProperty children, or the mappings for script classes) and fills in the missing tag data.
++/// </summary>
++internal static class TaggedContainerTypes
++{
++    private static bool Missing(string? type, FPropertyTagData? data) => type switch
++    {
++        "StructProperty" => data?.StructType is null,
++        "ByteProperty" => data?.EnumName is null,
++        _ => false
++    };
++
++    public static bool NeedsResolve(FPropertyTagData? tagData) => tagData?.Type switch
++    {
++        "SetProperty" => Missing(tagData.InnerType, tagData.InnerTypeData),
++        "MapProperty" => Missing(tagData.InnerType, tagData.InnerTypeData) || Missing(tagData.ValueType, tagData.ValueTypeData),
++        _ => false
++    };
++
++    public static void Resolve(FPropertyTagData tagData, string propertyName, UStruct? owner, TypeMappings? mappings)
++    {
++        if (owner is null || !TryFind(owner, propertyName, mappings, out var key, out var value)) return;
++
++        if (Missing(tagData.InnerType, tagData.InnerTypeData) && key is not null)
++            tagData.InnerTypeData = Fill(tagData.InnerType!, tagData.InnerTypeData, key.Value);
++        if (tagData.Type == "MapProperty" && Missing(tagData.ValueType, tagData.ValueTypeData) && value is not null)
++            tagData.ValueTypeData = Fill(tagData.ValueType!, tagData.ValueTypeData, value.Value);
++    }
++
++    private static FPropertyTagData? Fill(string type, FPropertyTagData? data, (string Type, string? Name) found)
++    {
++        if (found.Name is null || found.Type != type) return data;
++        data ??= new FPropertyTagData { Type = type };
++        if (type == "StructProperty") data.StructType = found.Name;
++        else data.EnumName = found.Name;
++        return data;
++    }
++
++    private static bool TryFind(UStruct owner, string name, TypeMappings? mappings, out (string Type, string? Name)? key, out (string Type, string? Name)? value)
++    {
++        key = value = null;
++        UStruct? struc = owner;
++        for (var depth = 0; struc is not null && depth < 64; depth++)
++        {
++            if (struc is UScriptClass)
++                return mappings is not null && mappings.Types.TryGetValue(struc.Name, out var mapped) && TryFindMapped(mapped, name, out key, out value);
++
++            if (struc.ChildProperties is { Length: > 0 } fields)
++            {
++                foreach (var field in fields)
++                {
++                    if (field is not FProperty prop || !prop.Name.Text.Equals(name, StringComparison.OrdinalIgnoreCase)) continue;
++                    (key, value) = prop switch
++                    {
++                        FMapProperty map => (Describe(map.KeyProp), Describe(map.ValueProp)),
++                        FSetProperty set => (Describe(set.ElementProp), null),
++                        _ => (null, null)
++                    };
++                    return true;
++                }
++            }
++
++            if (struc.Children is { Length: > 0 } children)
++            {
++                foreach (var child in children)
++                {
++                    if (!child.TryLoad<UProperty>(out var prop) || !prop.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) continue;
++                    (key, value) = prop switch
++                    {
++                        UMapProperty map => (Describe(map.KeyProp), Describe(map.ValueProp)),
++                        USetProperty set => (Describe(set.ElementProp), null),
++                        _ => (null, null)
++                    };
++                    return true;
++                }
++            }
++
++            struc = struc.SuperStruct?.TryLoad<UStruct>(out var super) == true ? super : null;
++        }
++        return false;
++    }
++
++    private static bool TryFindMapped(Struct? mapped, string name, out (string Type, string? Name)? key, out (string Type, string? Name)? value)
++    {
++        key = value = null;
++        for (var depth = 0; mapped is not null && depth < 64; depth++)
++        {
++            foreach (var info in mapped.Properties.Values)
++            {
++                if (!info.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) continue;
++                key = Describe(info.MappingType.InnerType);
++                value = info.MappingType.Type == "MapProperty" ? Describe(info.MappingType.ValueType) : null;
++                return true;
++            }
++            mapped = mapped.Super.Value;
++        }
++        return false;
++    }
++
++    private static (string, string?)? Describe(PropertyType? type) => type switch
++    {
++        null => null,
++        { Type: "StructProperty" } => ("StructProperty", type.StructType),
++        { Type: "ByteProperty" or "EnumProperty" } => ("ByteProperty", type.EnumName),
++        _ => null
++    };
++
++    private static (string, string?)? Describe(FProperty? prop) => prop switch
++    {
++        FStructProperty s => ("StructProperty", s.Struct.ResolvedObject?.Name.Text),
++        FByteProperty b => ("ByteProperty", b.Enum.ResolvedObject?.Name.Text),
++        _ => null
++    };
++
++    private static (string, string?)? Describe(FPackageIndex? index)
++    {
++        if (index is null || !index.TryLoad<UProperty>(out var prop)) return null;
++        return prop switch
++        {
++            UStructProperty s => ("StructProperty", s.Struct.ResolvedObject?.Name.Text),
++            UByteProperty b => ("ByteProperty", b.Enum.ResolvedObject?.Name.Text),
++            _ => null
++        };
++    }
++}
+diff --git a/CUE4Parse/UE4/Assets/Objects/UScriptSet.cs b/CUE4Parse/UE4/Assets/Objects/UScriptSet.cs
+index 07c7fc57..5cc82a39 100644
+--- a/CUE4Parse/UE4/Assets/Objects/UScriptSet.cs
++++ b/CUE4Parse/UE4/Assets/Objects/UScriptSet.cs
+@@ -16,7 +16,7 @@ public class UScriptSet
+ 
+     public UScriptSet(List<FPropertyTagType> properties) => Properties = properties;
+ 
+-    public UScriptSet(FAssetArchive Ar, FPropertyTagData? tagData, ReadType readType)
++    public UScriptSet(FAssetArchive Ar, FPropertyTagData? tagData, ReadType readType, int size = 0)
+     {
+         if (Ar.Game == GAME_StateOfDecay2 && tagData is not null)
+         {
+@@ -57,12 +57,17 @@ public UScriptSet(FAssetArchive Ar, FPropertyTagData? tagData, ReadType readType
+             };
+         }
+ 
++        // Tagged set tags do not carry the enum of a ByteProperty element; an enum element is saved as an FName (like ArrayProperty).
++        var enumBytes = innerType == "ByteProperty" && readType != ReadType.RAW && size > 0 && !Ar.HasUnversionedProperties &&
++                        tagData.InnerTypeData?.EnumName is null && HasFNameElements(Ar, size);
++
+         if (readType != ReadType.RAW)
+         {
+             var numElementsToRemove = Ar.Read<int>();
+             for (var i = 0; i < numElementsToRemove; i++)
+             {
+-                FPropertyTagType.ReadPropertyTagType(Ar, innerType, tagData.InnerTypeData, ReadType.ARRAY);
++                if (enumBytes) _ = new EnumProperty(Ar, tagData.InnerTypeData, ReadType.ARRAY);
++                else FPropertyTagType.ReadPropertyTagType(Ar, innerType, tagData.InnerTypeData, ReadType.ARRAY);
+             }
+         }
+         if (Ar.Game is GAME_AshesOfCreation && Ar is FAoCDBCReader) Ar.Position += 4;
+@@ -70,13 +75,32 @@ public UScriptSet(FAssetArchive Ar, FPropertyTagData? tagData, ReadType readType
+         var type = readType == ReadType.RAW ? ReadType.RAW : ReadType.ARRAY;
+         var num = Ar.Read<int>();
+         Properties = new List<FPropertyTagType>(num);
++
+         for (var i = 0; i < num; i++)
+         {
+-            var property = FPropertyTagType.ReadPropertyTagType(Ar, innerType, tagData.InnerTypeData, type);
++            var property = enumBytes ? new EnumProperty(Ar, tagData.InnerTypeData, type) : FPropertyTagType.ReadPropertyTagType(Ar, innerType, tagData.InnerTypeData, type);
+             if (property != null)
+                 Properties.Add(property);
+             else
+                 Log.Debug("Failed to read element for index {Index} in set", i);
+         }
+     }
++
++    // Elements to remove and elements both precede their counts; the tag size fits the FName layout (8 bytes per element) or the byte layout, not both.
++    private static bool HasFNameElements(FAssetArchive Ar, int size)
++    {
++        var start = Ar.Position;
++        try
++        {
++            var numToRemove = Ar.Read<int>();
++            if (numToRemove < 0 || 8L * numToRemove + 8 > size) return false;
++            Ar.Position += 8L * numToRemove;
++            var num = Ar.Read<int>();
++            return num >= 0 && numToRemove + num > 0 && 8 + 8L * (numToRemove + num) == size;
++        }
++        finally
++        {
++            Ar.Position = start;
++        }
++    }
+ }
+diff --git a/CUE4Parse/UE4/Objects/Chaos/Union/FImplicitObjectUnion.cs b/CUE4Parse/UE4/Objects/Chaos/Union/FImplicitObjectUnion.cs
+index 8e990d4e..604ebb6a 100644
+--- a/CUE4Parse/UE4/Objects/Chaos/Union/FImplicitObjectUnion.cs
++++ b/CUE4Parse/UE4/Objects/Chaos/Union/FImplicitObjectUnion.cs
+@@ -28,9 +28,10 @@ public override void Serialize(FChaosArchive Ar)
+         }
+         else if (FFortniteMainBranchObjectVersion.Get(Ar) < FFortniteMainBranchObjectVersion.Type.ChaosImplicitObjectUnionBVHRefactor)
+         {
+-            // bHierarchyBuilt = Ar.ReadBoolean();
+-            // if (bHierarchyBuilt) LegacySerializeBVH(Ar);
+-            throw new NotImplementedException("Legacy BVH serialization is not implemented");
++            // Small unions are saved without a hierarchy; only the legacy hierarchy payload itself is unsupported
++            var bHierarchyBuilt = Ar.ReadBoolean();
++            if (bHierarchyBuilt)
++                throw new NotImplementedException("Legacy BVH serialization is not implemented");
+         }
+         else
+         {
+diff --git a/CUE4Parse/UE4/Versions/FEnterpriseObjectVersion.cs b/CUE4Parse/UE4/Versions/FEnterpriseObjectVersion.cs
+new file mode 100644
+index 00000000..486b4285
+--- /dev/null
++++ b/CUE4Parse/UE4/Versions/FEnterpriseObjectVersion.cs
+@@ -0,0 +1,71 @@
++using CUE4Parse.UE4.Objects.Core.Misc;
++using CUE4Parse.UE4.Readers;
++
++namespace CUE4Parse.UE4.Versions;
++
++// Custom serialization version for changes made in Dev-Enterprise stream
++public static class FEnterpriseObjectVersion
++{
++    public enum Type
++    {
++        // Before any version changes were made
++        BeforeCustomVersionWasAdded = 0,
++
++        // Conditional serialization of bulk (UDatasmithScene) and extra (UDatasmithStaticMeshCADImportData) data
++        FixSerializationOfBulkAndExtraData,
++
++        // Extensibility updates for bookmarks
++        BookmarkExtensibilityUpgrade,
++
++        // Update FMediaFrameworkCaptureCameraViewportCameraOutputInfo with LazyObjectPtr
++        MediaFrameworkUserDataLazyObject,
++
++        // Live Live timecode synchronization updates
++        LiveLinkTimeSynchronization,
++
++        // Deprecate MediaMode and MediaPort for from MediaConfiguration
++        AjaMediaConfiguration,
++
++        // Addition of pointer to UDatasmithDataPrepRecipe
++        HasUDataprepRecipe,
++
++        // Addition of UDatatprepAssetInterface and UDatatprepAssetInstance
++        HasUDatatprepAssetInterface,
++
++        // MeshDescriptionBulkData contains a bGuidIsHash so we can benefit from DDC caching.
++        MeshDescriptionBulkDataGuidIsHash,
++
++        // Splitting controller associated with a livelink component for each LiveLinkRole class hierarchy
++        LiveLinkControllerSplitPerRole,
++
++        // Change CoreTechParametricSurface serialization to be more efficient
++        CoreTechParametricSurfaceOptim,
++
++        // Added parametric surface data
++        AddedParametricSurfaceData,
++
++        // -----<new versions can be added above this line>-------------------------------------------------
++        VersionPlusOne,
++        LatestVersion = VersionPlusOne - 1
++    }
++
++    public static readonly FGuid GUID = new(0x9DFFBCD6, 0x494F0158, 0xE2211282, 0x3C92A888);
++
++    public static Type Get(FArchive Ar)
++    {
++        var ver = Ar.CustomVer(GUID);
++        if (ver >= 0)
++            return (Type) ver;
++
++        return Ar.Game switch
++        {
++            < GAME_UE4_20 => Type.BeforeCustomVersionWasAdded,
++            < GAME_UE4_21 => Type.FixSerializationOfBulkAndExtraData,
++            < GAME_UE4_22 => Type.LiveLinkTimeSynchronization,
++            < GAME_UE4_24 => Type.HasUDataprepRecipe,
++            < GAME_UE4_25 => Type.MeshDescriptionBulkDataGuidIsHash,
++            < GAME_UE5_6 => Type.CoreTechParametricSurfaceOptim,
++            _ => Type.LatestVersion
++        };
++    }
++}
+diff --git a/CUE4Parse/UE4/Versions/VersionContainer.cs b/CUE4Parse/UE4/Versions/VersionContainer.cs
+index dc111e36..46703758 100644
+--- a/CUE4Parse/UE4/Versions/VersionContainer.cs
++++ b/CUE4Parse/UE4/Versions/VersionContainer.cs
+@@ -118,6 +118,8 @@ private void InitMapStructTypes()
+             MapStructTypes["Tracks"] = new KeyValuePair<string, string>("MovieSceneTrackIdentifier", null);
+             MapStructTypes["SubSequences"] = new KeyValuePair<string, string>("MovieSceneSequenceID", null);
+             MapStructTypes["Hierarchy"] = new KeyValuePair<string, string>("MovieSceneSequenceID", null);
++            MapStructTypes["SubTemplateSerialNumbers"] = new KeyValuePair<string, string>("MovieSceneSequenceID", null);
++            MapStructTypes["SubSectionRanges"] = new KeyValuePair<string, string>("Guid", "MovieSceneFrameRange");
+             MapStructTypes["TrackSignatureToTrackIdentifier"] = Game < GAME_UE4_19
+                 ? new KeyValuePair<string, string>("Guid", "MovieSceneTrackIdentifiers")
+                 : new KeyValuePair<string, string>("Guid", "MovieSceneTrackIdentifier");

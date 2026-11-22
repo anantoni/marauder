@@ -1,0 +1,126 @@
+diff --git a/CUE4Parse/MappingsProvider/MappingsSchema.cs b/CUE4Parse/MappingsProvider/MappingsSchema.cs
+index e01d80e..de1cb6d 100644
+--- a/CUE4Parse/MappingsProvider/MappingsSchema.cs
++++ b/CUE4Parse/MappingsProvider/MappingsSchema.cs
+@@ -24,6 +24,7 @@ public Struct(TypeMappings? context, string name, string? superType, Dictionary<
+         SuperType = superType;
+         Super = new Lazy<Struct?>(() =>
+         {
++            if (SuperType != null) TypeMappings.Touched?.Add(SuperType);
+             if (SuperType != null && Context != null && Context.Types.TryGetValue(SuperType, out var superStruct))
+             {
+                 return superStruct;
+@@ -73,6 +74,7 @@ public SerializedStruct(TypeMappings? context, UStruct struc) : base(context, st
+             {
+                 if (superStruct is UScriptClass)
+                 {
++                    TypeMappings.Touched?.Add(superStruct.Name);
+                     if (Context != null && Context.Types.TryGetValue(superStruct.Name, out var scriptStruct))
+                     {
+                         return scriptStruct;
+diff --git a/CUE4Parse/MappingsProvider/TypeMappings.cs b/CUE4Parse/MappingsProvider/TypeMappings.cs
+index 5d8e3fd..5eb6bf1 100644
+--- a/CUE4Parse/MappingsProvider/TypeMappings.cs
++++ b/CUE4Parse/MappingsProvider/TypeMappings.cs
+@@ -3,6 +3,11 @@ namespace CUE4Parse.MappingsProvider;
+ public class TypeMappings
+ {
+     public readonly Dictionary<string, Struct> Types;
++    // usmap-cue4parse harness hooks (single-threaded use)
++    public static HashSet<string>? Touched;
++    public static Action<string, long>? OnPositionMismatch;
++    // usmap-fullload: nested reads that CUE4Parse silently skips or repositions
++    public static Action<string>? OnSoft;
+     public readonly Dictionary<string, Dictionary<long, string>> Enums;
+ 
+     public TypeMappings(Dictionary<string, Struct> types, Dictionary<string, Dictionary<long, string>> enums)
+diff --git a/CUE4Parse/UE4/Assets/AbstractUePackage.cs b/CUE4Parse/UE4/Assets/AbstractUePackage.cs
+index b0f4285..20d2f7c 100644
+--- a/CUE4Parse/UE4/Assets/AbstractUePackage.cs
++++ b/CUE4Parse/UE4/Assets/AbstractUePackage.cs
+@@ -88,21 +88,9 @@ protected void DeserializeObject(UObject obj, FAssetArchive Ar, long serialSize)
+         {
+             if (serialSize == 0) return; // Empty Export
+             obj.Deserialize(Ar, validPos);
+-#if DEBUG
++            // usmap-cue4parse harness: record end-position mismatches in all builds
+             var remaining = validPos - Ar.Position;
+-            switch (remaining)
+-            {
+-                case > 0:
+-                    Log.Warning("Did not read {0} correctly, {1} bytes remaining ({2}%)", obj.ExportType, remaining,
+-                        Math.Round((decimal)remaining / validPos * 100, 2));
+-                    break;
+-                case < 0:
+-                    Log.Warning("Did not read {0} correctly, {1} bytes exceeded", obj.ExportType, Math.Abs(remaining));
+-                    break;
+-                default:
+-                    break;
+-            }
+-#endif
++            if (remaining != 0) CUE4Parse.MappingsProvider.TypeMappings.OnPositionMismatch?.Invoke(obj.ExportType, remaining);
+         }
+         catch (Exception e)
+         {
+diff --git a/CUE4Parse/UE4/Assets/Exports/UObject.cs b/CUE4Parse/UE4/Assets/Exports/UObject.cs
+index 309b47a..8dcb7ee 100644
+--- a/CUE4Parse/UE4/Assets/Exports/UObject.cs
++++ b/CUE4Parse/UE4/Assets/Exports/UObject.cs
+@@ -364,6 +364,7 @@ internal static void DeserializePropertiesUnversioned(List<FPropertyTag> propert
+         var type = struc.Name;
+ 
+         Struct? propMappings = null;
++        CUE4Parse.MappingsProvider.TypeMappings.Touched?.Add(type);
+         if (struc is UScriptClass)
+             Ar.Owner!.Mappings?.Types.TryGetValue(type, out propMappings);
+         else
+@@ -438,6 +439,7 @@ internal static void DeserializeRawProperties(List<FPropertyTag> properties, FAs
+     {
+         var type = struc.Name;
+         Struct? propMappings = null;
++        CUE4Parse.MappingsProvider.TypeMappings.Touched?.Add(type);
+         if (struc is UScriptClass)
+             Ar.Owner!.Mappings?.Types.TryGetValue(type, out propMappings);
+         else
+diff --git a/CUE4Parse/UE4/Assets/Objects/FPropertyTag.cs b/CUE4Parse/UE4/Assets/Objects/FPropertyTag.cs
+index 6623c06..3db929e 100644
+--- a/CUE4Parse/UE4/Assets/Objects/FPropertyTag.cs
++++ b/CUE4Parse/UE4/Assets/Objects/FPropertyTag.cs
+@@ -207,6 +207,7 @@ public FPropertyTag(FAssetArchive Ar, bool readData)
+         try
+         {
+             Tag = FPropertyTagType.ReadPropertyTagType(Ar, PropertyType.Text, TagData, ReadType.NORMAL, Size);
++            if (finalPos != Ar.Position) CUE4Parse.MappingsProvider.TypeMappings.OnSoft?.Invoke("tagrem:" + PropertyType.Text);
+ #if DEBUG
+             if (finalPos != Ar.Position)
+             {
+@@ -216,6 +217,7 @@ public FPropertyTag(FAssetArchive Ar, bool readData)
+         }
+         catch (ParserException e)
+         {
++            CUE4Parse.MappingsProvider.TypeMappings.OnSoft?.Invoke("tagerr:" + PropertyType.Text);
+ #if DEBUG
+             if (finalPos != Ar.Position)
+             {
+diff --git a/CUE4Parse/UE4/Assets/Objects/FScriptStruct.cs b/CUE4Parse/UE4/Assets/Objects/FScriptStruct.cs
+index b56431d..541fb37 100644
+--- a/CUE4Parse/UE4/Assets/Objects/FScriptStruct.cs
++++ b/CUE4Parse/UE4/Assets/Objects/FScriptStruct.cs
+@@ -495,14 +495,17 @@ public FScriptStruct(IUStruct structType)
+             if (structType.TryLoad<UStruct>(out var struc) || structName != null)
+             {
+                 result = new FScriptStruct(Ar, structName, struc, ReadType.NORMAL);
++                if (Ar.Position != savedPos + serialSize) CUE4Parse.MappingsProvider.TypeMappings.OnSoft?.Invoke("instrem:" + structName);
+             }
+             else
+             {
++                CUE4Parse.MappingsProvider.TypeMappings.OnSoft?.Invoke("instnotype");
+                 Log.Warning("Failed to load FInstancedStruct of type {0}, skipping it", structType.ResolvedObject?.GetFullName());
+             }
+         }
+         catch (Exception e)
+         {
++            CUE4Parse.MappingsProvider.TypeMappings.OnSoft?.Invoke("insterr:" + (structType.ResolvedObject?.Name.ToString() ?? "?"));
+             Log.Warning(e, "Failed to read FInstancedStruct of type {0}, skipping it", structType.ResolvedObject?.GetFullName());
+         }
+         finally
