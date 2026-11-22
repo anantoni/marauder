@@ -45,7 +45,11 @@ released generator installed (`pip install -e <repo root>`, `classify.py` uses i
 export FULLLOAD_WORK=$PWD/fullload-work       # all inputs and outputs live here
 export OODLE_LIB=/path/to/liboodle-data-shared.so
 export DOTNET_ROOT=$HOME/.dotnet              # default
+mkdir -p "$FULLLOAD_WORK/runs"                # the driver logs are redirected into it
 ```
+
+`marauder generate` also reads Oodle-compressed archives: set `UE_OODLE_LIB` to the same library when you
+make the `ours` maps.
 
 ### Your games and maps
 
