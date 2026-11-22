@@ -1,0 +1,1557 @@
+{
+"4.19": {
+"success": {
+"Success": {
+"success": 1
+}
+}
+},
+"4.20": {
+"animation": {
+"animation": {
+"Animation": 1
+}
+},
+"damage": {
+"damage": {
+"Damage": 1
+}
+},
+"target": {
+"Target": {
+"target": 1
+}
+}
+},
+"4.21": {
+"blackboardcomp": {
+"blackboardComp": {
+"BlackboardComp": 1
+}
+},
+"description": {
+"description": {
+"Description": 1
+}
+},
+"eventid": {
+"EventID": {
+"EventId": 1
+}
+},
+"itemid": {
+"ItemId": {
+"itemId": 1
+}
+},
+"trigger": {
+"trigger": {
+"Trigger": 1
+}
+}
+},
+"4.22": {
+"active": {
+"Active": {
+"active": 1
+}
+},
+"appid": {
+"AppID": {
+"AppID": 5,
+"AppId": 1
+}
+},
+"maxwalkspeed": {
+"MaxWalkSpeed": {
+"MaxWalkSpeed": 5
+},
+"maxWalkSpeed": {
+"MaxWalkSpeed": 1
+}
+},
+"protocol": {
+"Protocol": {
+"Protocol": 5,
+"protocol": 1
+}
+},
+"success": {
+"Success": {
+"Success": 5,
+"success": 1
+}
+},
+"tag": {
+"Tag": {
+"Tag": 5
+},
+"tag": {
+"Tag": 1
+}
+}
+},
+"4.23": {
+"acceptanceradius": {
+"AcceptanceRadius": {
+"AcceptanceRadius": 2
+},
+"acceptanceRadius": {
+"AcceptanceRadius": 1
+}
+},
+"appid": {
+"AppID": {
+"AppID": 2,
+"appId": 1
+}
+},
+"capsulehalfheight": {
+"CapsuleHalfHeight": {
+"CapsuleHalfHeight": 2
+},
+"capsuleHalfHeight": {
+"CapsuleHalfHeight": 1
+}
+},
+"clientid": {
+"ClientID": {
+"ClientId": 1
+}
+},
+"damage": {
+"Damage": {
+"Damage": 2
+},
+"damage": {
+"Damage": 1
+}
+},
+"failuretype": {
+"failureType": {
+"FailureType": 1
+}
+},
+"filename": {
+"Filename": {
+"FileName": 1,
+"Filename": 2
+}
+},
+"instigator": {
+"Instigator": {
+"Instigator": 2,
+"instigator": 1
+}
+},
+"pitchmultiplier": {
+"PitchMultiplier": {
+"PitchMultiplier": 2
+},
+"pitchMultiplier": {
+"PitchMultiplier": 1
+}
+},
+"results": {
+"results": {
+"Results": 1
+}
+},
+"score": {
+"Score": {
+"Score": 1,
+"score": 1
+},
+"score": {
+"score": 1
+}
+},
+"sessionname": {
+"SessionName": {
+"SessionName": 2
+},
+"sessionName": {
+"SessionName": 1
+}
+},
+"slotname": {
+"SlotName": {
+"SlotName": 2,
+"slotName": 1
+}
+},
+"spawnlocation": {
+"SpawnLocation": {
+"SpawnLocation": 2,
+"spawnLocation": 1
+}
+},
+"success": {
+"Success": {
+"Success": 2,
+"success": 1
+}
+},
+"value": {
+"Value": {
+"Value": 2
+},
+"value": {
+"Value": 1
+}
+},
+"velocity": {
+"Velocity": {
+"Velocity": 2
+},
+"velocity": {
+"Velocity": 1
+}
+},
+"version": {
+"Version": {
+"Version": 2
+},
+"version": {
+"VERSION": 1
+}
+},
+"volumemultiplier": {
+"VolumeMultiplier": {
+"VolumeMultiplier": 2
+},
+"volumeMultiplier": {
+"VolumeMultiplier": 1
+}
+}
+},
+"4.25": {
+"alpha": {
+"Alpha": {
+"ALPHA": 1,
+"Alpha": 8
+}
+},
+"appid": {
+"AppID": {
+"AppID": 7,
+"AppId": 2
+}
+},
+"currentstate": {
+"CurrentState": {
+"CurrentState": 1
+},
+"currentState": {
+"CurrentState": 1
+}
+},
+"dll": {
+"DLL": {
+"dll": 1
+}
+},
+"eventid": {
+"EventID": {
+"EventId": 1
+}
+},
+"improv": {
+"improv": {
+"Improv": 1
+}
+},
+"instanceindex": {
+"InstanceIndex": {
+"InstanceIndex": 2
+},
+"instanceIndex": {
+"InstanceIndex": 1
+}
+},
+"life": {
+"Life": {
+"LIFE": 1
+}
+},
+"null": {
+"Null": {
+"NULL": 1
+}
+},
+"pointid": {
+"PointID": {
+"POINTID": 1
+}
+},
+"protocol": {
+"Protocol": {
+"Protocol": 8,
+"protocol": 1
+}
+},
+"rhi": {
+"Rhi": {
+"RHI": 1
+}
+},
+"rowindex": {
+"RowIndex": {
+"RowIndex": 8,
+"rowIndex": 1
+}
+},
+"text": {
+"Text": {
+"Text": 8
+},
+"text": {
+"Text": 1
+}
+},
+"timestamp": {
+"TimeStamp": {
+"Timestamp": 1
+},
+"Timestamp": {
+"Timestamp": 8
+}
+},
+"username": {
+"UserName": {
+"UserName": 8,
+"Username": 1
+}
+},
+"yes": {
+"Yes": {
+"Yes": 8,
+"yes": 1
+}
+}
+},
+"4.26": {
+"block": {
+"bLock": {
+"Block": 1,
+"bLock": 3
+}
+},
+"capsulehalfheight": {
+"CapsuleHalfHeight": {
+"CapsuleHalfHeight": 3
+},
+"capsuleHalfHeight": {
+"CapsuleHalfHeight": 1
+}
+},
+"dll": {
+"DLL": {
+"dll": 3
+}
+},
+"pinid": {
+"PinID": {
+"PinId": 4
+}
+},
+"position": {
+"Position": {
+"Position": 3,
+"position": 1
+}
+},
+"vertexcount": {
+"VertexCount": {
+"VertexCount": 3,
+"vertexcount": 1
+}
+}
+},
+"4.27": {
+"pinid": {
+"PinID": {
+"PinId": 2
+},
+"PinId": {
+"PinId": 1
+}
+},
+"srgb": {
+"SRGB": {
+"sRGB": 3
+}
+},
+"switch": {
+"Switch": {
+"SWITCH": 2
+}
+}
+},
+"5.0": {
+"collection": {
+"Collection": {
+"Collection": 2
+},
+"collection": {
+"Collection": 1
+}
+},
+"controllerid": {
+"ControllerID": {
+"ControllerId": 3
+}
+},
+"height": {
+"HEIGHT": {
+"Height": 1
+},
+"Height": {
+"Height": 2
+}
+},
+"mask": {
+"Mask": {
+"Mask": 2,
+"mask": 1
+}
+},
+"metadata": {
+"MetaData": {
+"MetaData": 1
+},
+"Metadata": {
+"MetaData": 2
+}
+},
+"points": {
+"Points": {
+"Points": 2,
+"points": 1
+}
+},
+"rootmetasounddocument": {
+"RootMetasoundDocument": {
+"RootMetaSoundDocument": 2
+}
+},
+"settings": {
+"Settings": {
+"Settings": 2,
+"settings": 1
+}
+},
+"srgb": {
+"SRGB": {
+"SRGB": 1,
+"sRGB": 2
+}
+}
+},
+"5.1": {
+"bone": {
+"Bone": {
+"bone": 6
+}
+},
+"bool": {
+"Bool": {
+"bool": 6
+}
+},
+"controllerid": {
+"ControllerID": {
+"ControllerId": 5
+},
+"ControllerId": {
+"ControllerId": 1
+}
+},
+"float": {
+"Float": {
+"float": 6
+}
+},
+"int32": {
+"Int32": {
+"int32": 6
+}
+},
+"metadata": {
+"Metadata": {
+"MetaData": 6
+}
+},
+"metasound": {
+"MetaSound": {
+"Metasound": 6
+}
+},
+"namespace": {
+"NameSpace": {
+"Namespace": 6
+}
+},
+"protocol": {
+"Protocol": {
+"Protocol": 5,
+"protocol": 1
+}
+},
+"rootmetasounddocument": {
+"RootMetasoundDocument": {
+"RootMetaSoundDocument": 6
+}
+},
+"space": {
+"Space": {
+"Space": 5,
+"space": 1
+}
+},
+"success": {
+"Success": {
+"Success": 5
+},
+"success": {
+"Success": 1
+}
+},
+"switch": {
+"Switch": {
+"SWITCH": 1
+}
+},
+"tooltip": {
+"ToolTip": {
+"ToolTip": 5,
+"Tooltip": 1
+}
+},
+"uint16": {
+"UInt16": {
+"uint16": 6
+}
+},
+"uint32": {
+"UInt32": {
+"uint32": 6
+}
+},
+"uint8": {
+"UInt8": {
+"uint8": 6
+}
+},
+"username": {
+"UserName": {
+"UserName": 5,
+"Username": 1
+}
+},
+"xboxone": {
+"XboxOne": {
+"XBoxOne": 1
+}
+}
+},
+"5.2": {
+"active": {
+"Active": {
+"Active": 2
+},
+"active": {
+"Active": 1
+}
+},
+"bone": {
+"Bone": {
+"bone": 3
+}
+},
+"bool": {
+"Bool": {
+"bool": 3
+}
+},
+"controllerid": {
+"ControllerID": {
+"ControllerId": 3
+}
+},
+"float": {
+"Float": {
+"float": 3
+}
+},
+"int32": {
+"Int32": {
+"int32": 3
+}
+},
+"metadata": {
+"Metadata": {
+"MetaData": 3
+}
+},
+"metasound": {
+"MetaSound": {
+"Metasound": 3
+}
+},
+"namespace": {
+"NameSpace": {
+"Namespace": 3
+}
+},
+"uint16": {
+"UInt16": {
+"uint16": 3
+}
+},
+"uint32": {
+"UInt32": {
+"uint32": 3
+}
+},
+"uint8": {
+"UInt8": {
+"uint8": 3
+}
+}
+},
+"5.3": {
+"base": {
+"Base": {
+"base": 5
+}
+},
+"bone": {
+"Bone": {
+"bone": 5
+}
+},
+"bool": {
+"Bool": {
+"bool": 5
+}
+},
+"displacement": {
+"Displacement": {
+"displacement": 5
+}
+},
+"float": {
+"Float": {
+"float": 5
+}
+},
+"int32": {
+"Int32": {
+"int32": 5
+}
+},
+"interaction": {
+"interaction": {
+"Interaction": 1
+}
+},
+"lifetime": {
+"Lifetime": {
+"Lifetime": 4,
+"lifeTime": 1
+}
+},
+"metasound": {
+"MetaSound": {
+"Metasound": 5
+}
+},
+"proxy": {
+"Proxy": {
+"Proxy": 4,
+"proxy": 1
+}
+},
+"rootmetasounddocument": {
+"RootMetasoundDocument": {
+"RootMetaSoundDocument": 5
+}
+},
+"score": {
+"Score": {
+"Score": 4,
+"score": 1
+}
+},
+"token": {
+"Token": {
+"Token": 4,
+"token": 1
+}
+},
+"tooltip": {
+"ToolTip": {
+"ToolTip": 3,
+"Tooltip": 2
+}
+},
+"uint32": {
+"UInt32": {
+"uint32": 5
+}
+},
+"uint8": {
+"UInt8": {
+"uint8": 5
+}
+},
+"uniqueid": {
+"UniqueId": {
+"UniqueID": 5
+}
+}
+},
+"5.4": {
+"address": {
+"Address": {
+"Address": 5,
+"address": 1
+}
+},
+"base": {
+"Base": {
+"base": 9
+}
+},
+"bold": {
+"bold": {
+"Bold": 1
+}
+},
+"bone": {
+"Bone": {
+"bone": 9
+}
+},
+"cliptexture": {
+"clipTexture": {
+"ClipTexture": 1
+}
+},
+"displacement": {
+"Displacement": {
+"displacement": 9
+}
+},
+"duration": {
+"Duration": {
+"Duration": 8,
+"duration": 1
+}
+},
+"exp": {
+"Exp": {
+"Exp": 7,
+"exp": 2
+}
+},
+"immediate": {
+"IMMEDIATE": {
+"Immediate": 1
+},
+"Immediate": {
+"Immediate": 1
+}
+},
+"italic": {
+"italic": {
+"Italic": 1
+}
+},
+"linker": {
+"Linker": {
+"Linker": 8,
+"linker": 1
+}
+},
+"max": {
+"Max": {
+"Max": 8,
+"max": 1
+}
+},
+"metasound": {
+"MetaSound": {
+"Metasound": 9
+}
+},
+"min": {
+"Min": {
+"Min": 8,
+"min": 1
+}
+},
+"namespace": {
+"Namespace": {
+"NameSpace": 9
+}
+},
+"orientation": {
+"Orientation": {
+"Orientation": 8,
+"orientation": 1
+}
+},
+"pitch": {
+"Pitch": {
+"Pitch": 8,
+"pitch": 1
+}
+},
+"pointereventdata": {
+"PointerEventData": {
+"pointerEventData": 1
+}
+},
+"position": {
+"Position": {
+"Position": 8,
+"position": 1
+}
+},
+"spritetexture": {
+"spriteTexture": {
+"SpriteTexture": 1
+}
+},
+"surface": {
+"Surface": {
+"surface": 3
+}
+},
+"switch": {
+"Switch": {
+"SWITCH": 1
+}
+},
+"targetframerate": {
+"TargetFrameRate": {
+"TargetFrameRate": 8
+},
+"TargetFramerate": {
+"TargetFrameRate": 1
+}
+},
+"timescale": {
+"TimeScale": {
+"TimeScale": 8,
+"timescale": 1
+}
+},
+"tooltip": {
+"ToolTip": {
+"ToolTip": 4,
+"Tooltip": 5
+}
+},
+"uniqueid": {
+"UniqueId": {
+"UniqueID": 9
+}
+},
+"vertexcount": {
+"VertexCount": {
+"VertexCount": 7,
+"vertexcount": 2
+}
+},
+"xboxone": {
+"XboxOne": {
+"XBoxOne": 1
+}
+}
+},
+"5.5": {
+"base": {
+"Base": {
+"base": 3
+}
+},
+"bone": {
+"Bone": {
+"bone": 3
+}
+},
+"clamp": {
+"Clamp": {
+"clamp": 3
+}
+},
+"exp": {
+"Exp": {
+"exp": 3
+}
+},
+"immediate": {
+"IMMEDIATE": {
+"Immediate": 1
+}
+},
+"in": {
+"In": {
+"In": 2
+},
+"iN": {
+"In": 1
+}
+},
+"int16": {
+"Int16": {
+"int16": 3
+}
+},
+"int8": {
+"Int8": {
+"int8": 3
+}
+},
+"max": {
+"Max": {
+"max": 3
+}
+},
+"metasound": {
+"MetaSound": {
+"Metasound": 3
+}
+},
+"min": {
+"Min": {
+"min": 3
+}
+},
+"minqualitylevellod": {
+"MinQualityLevelLod": {
+"MinQualityLevelLOD": 3
+}
+},
+"namespace": {
+"Namespace": {
+"NameSpace": 3
+}
+},
+"output": {
+"Output": {
+"Output": 2,
+"output": 1
+}
+},
+"position": {
+"Position": {
+"Position": 1,
+"position": 2
+}
+},
+"switch": {
+"Switch": {
+"SWITCH": 1
+}
+},
+"tooltip": {
+"ToolTip": {
+"ToolTip": 2,
+"Tooltip": 1
+}
+},
+"uint16": {
+"UInt16": {
+"uint16": 3
+}
+},
+"uniqueid": {
+"UniqueId": {
+"UniqueID": 3
+}
+},
+"vertexcount": {
+"VertexCount": {
+"vertexcount": 3
+}
+},
+"xboxone": {
+"XboxOne": {
+"XBoxOne": 1
+}
+}
+},
+"5.6": {
+"actortocheck": {
+"ActorToCheck": {
+"ActorToCheck": 6,
+"actorToCheck": 1
+}
+},
+"addingplayer": {
+"AddingPlayer": {
+"addingPlayer": 1
+}
+},
+"address": {
+"Address": {
+"Address": 3,
+"address": 2
+}
+},
+"alpha": {
+"Alpha": {
+"ALPHA": 1,
+"Alpha": 6
+}
+},
+"appkey": {
+"appKey": {
+"AppKey": 1
+}
+},
+"autosuccessrangefromlastseenlocation": {
+"AutoSuccessRangeFromLastSeenLocation": {
+"AutoSuccessRangeFromLastSeenLocation": 6
+},
+"autoSuccessRangeFromLastSeenLocation": {
+"AutoSuccessRangeFromLastSeenLocation": 1
+}
+},
+"ballowcrossplay": {
+"bAllowCrossplay": {
+"bAllowCrossPlay": 1,
+"bAllowCrossplay": 6
+}
+},
+"base": {
+"Base": {
+"base": 7
+}
+},
+"bone": {
+"Bone": {
+"bone": 6
+},
+"bone": {
+"bone": 1
+}
+},
+"clamp": {
+"Clamp": {
+"Clamp": 1,
+"clamp": 6
+}
+},
+"count": {
+"Count": {
+"Count": 6,
+"count": 1
+}
+},
+"dash": {
+"Dash": {
+"DASH": 1
+}
+},
+"double_jump": {
+"DOUBLE_JUMP": {
+"double_jump": 1
+}
+},
+"duration": {
+"Duration": {
+"Duration": 5,
+"duration": 2
+}
+},
+"end": {
+"End": {
+"End": 6
+},
+"end": {
+"End": 1
+}
+},
+"endpoint": {
+"Endpoint": {
+"EndPoint": 1,
+"Endpoint": 6
+}
+},
+"exp": {
+"Exp": {
+"Exp": 1,
+"exp": 6
+}
+},
+"flipbook": {
+"Flipbook": {
+"flipbook": 1
+}
+},
+"friendtofollow": {
+"friendTofollow": {
+"FriendToFollow": 1
+}
+},
+"goallocation": {
+"GoalLocation": {
+"goalLocation": 1
+}
+},
+"hearingrange": {
+"HearingRange": {
+"HearingRange": 6
+},
+"hearingRange": {
+"HearingRange": 1
+}
+},
+"immediate": {
+"IMMEDIATE": {
+"Immediate": 3
+}
+},
+"index": {
+"Index": {
+"Index": 6,
+"index": 1
+}
+},
+"int": {
+"int": {
+"Int": 3,
+"int": 4
+}
+},
+"int16": {
+"Int16": {
+"int16": 7
+}
+},
+"int8": {
+"Int8": {
+"int8": 7
+}
+},
+"life": {
+"Life": {
+"LIFE": 1
+}
+},
+"lods": {
+"LODs": {
+"LODs": 4,
+"Lods": 2
+}
+},
+"losesightradius": {
+"LoseSightRadius": {
+"LoseSightRadius": 6
+},
+"loseSightRadius": {
+"LoseSightRadius": 1
+}
+},
+"max": {
+"Max": {
+"Max": 4,
+"max": 3
+}
+},
+"maxacceleration": {
+"MaxAcceleration": {
+"MaxAcceleration": 6
+},
+"maxAcceleration": {
+"MaxAcceleration": 1
+}
+},
+"mimetype": {
+"MimeType": {
+"MimeType": 5,
+"mimetype": 2
+}
+},
+"min": {
+"Min": {
+"Min": 4,
+"min": 3
+}
+},
+"mindistance": {
+"MinDistance": {
+"MinDistance": 6,
+"minDistance": 1
+}
+},
+"movementcfg": {
+"movementCFG": {
+"movementCfg": 1
+}
+},
+"no": {
+"No": {
+"NO": 1,
+"No": 5
+},
+"nO": {
+"No": 1
+}
+},
+"orientation": {
+"Orientation": {
+"Orientation": 5,
+"orientation": 2
+}
+},
+"peripheralvisionangledegrees": {
+"PeripheralVisionAngleDegrees": {
+"PeripheralVisionAngleDegrees": 6
+},
+"peripheralVisionAngleDegrees": {
+"PeripheralVisionAngleDegrees": 1
+}
+},
+"pitch": {
+"Pitch": {
+"Pitch": 5,
+"pitch": 2
+}
+},
+"pointid": {
+"PointID": {
+"POINTID": 1,
+"PointID": 1
+},
+"PointId": {
+"PointId": 1
+}
+},
+"position": {
+"Position": {
+"Position": 3,
+"position": 4
+}
+},
+"protocol": {
+"Protocol": {
+"Protocol": 5,
+"protocol": 2
+}
+},
+"ps": {
+"Ps": {
+"ps": 1
+}
+},
+"pull": {
+"Pull": {
+"PULL": 1,
+"Pull": 6
+}
+},
+"questid": {
+"QuestID": {
+"QuestId": 1
+}
+},
+"relationstate": {
+"relationState": {
+"RelationState": 1
+}
+},
+"request": {
+"Request": {
+"Request": 4
+},
+"request": {
+"Request": 1
+}
+},
+"result": {
+"Result": {
+"Result": 6,
+"result": 1
+}
+},
+"rhi": {
+"Rhi": {
+"RHI": 1
+}
+},
+"rotationrate": {
+"RotationRate": {
+"RotationRate": 6
+},
+"rotationRate": {
+"RotationRate": 1
+}
+},
+"runningrotationrate": {
+"runningRotationRate": {
+"RunningRotationRate": 1
+}
+},
+"scaredrotationrate": {
+"scaredRotationRate": {
+"ScaredRotationRate": 1
+}
+},
+"scrollbarpadding": {
+"ScrollBarPadding": {
+"ScrollBarPadding": 1
+},
+"ScrollbarPadding": {
+"ScrollBarPadding": 6
+}
+},
+"selected": {
+"selected": {
+"Selected": 1
+}
+},
+"sessionid": {
+"SessionId": {
+"SessionID": 1,
+"SessionId": 6
+}
+},
+"sightradius": {
+"SightRadius": {
+"SightRadius": 6
+},
+"sightRadius": {
+"SightRadius": 1
+}
+},
+"sourcetags": {
+"SourceTags": {
+"SourceTags": 1,
+"sourceTags": 1
+}
+},
+"speed": {
+"Speed": {
+"Speed": 5,
+"speed": 1
+},
+"speed": {
+"Speed": 1
+}
+},
+"stamina": {
+"Stamina": {
+"Stamina": 1,
+"stamina": 1
+}
+},
+"success": {
+"Success": {
+"Success": 6,
+"success": 1
+}
+},
+"summonercontroller": {
+"SummonerController": {
+"summonerController": 1
+}
+},
+"temperature": {
+"Temperature": {
+"Temperature": 6,
+"temperature": 1
+}
+},
+"timeout": {
+"TimeOut": {
+"Timeout": 1
+}
+},
+"timescale": {
+"TimeScale": {
+"TimeScale": 5,
+"timescale": 2
+}
+},
+"token": {
+"Token": {
+"Token": 6,
+"token": 1
+}
+},
+"tooltip": {
+"ToolTip": {
+"ToolTip": 6,
+"Tooltip": 1
+}
+},
+"typeid": {
+"TypeID": {
+"TypeID": 6,
+"TypeId": 1
+}
+},
+"uint16": {
+"UInt16": {
+"uint16": 7
+}
+},
+"uniqueid": {
+"UniqueId": {
+"UniqueID": 7
+}
+},
+"variableguid": {
+"VariableGuid": {
+"VariableGUID": 2,
+"VariableGuid": 5
+}
+},
+"voltage": {
+"Voltage": {
+"voltage": 1
+}
+},
+"widgetname": {
+"WidgetName": {
+"WidgetName": 6,
+"widgetname": 1
+}
+},
+"xboxone": {
+"XboxOne": {
+"XBoxOne": 3
+}
+}
+},
+"5.7": {
+"base": {
+"Base": {
+"base": 2
+}
+},
+"bone": {
+"Bone": {
+"bone": 2
+}
+},
+"bool": {
+"Bool": {
+"bool": 2
+}
+},
+"clamp": {
+"Clamp": {
+"clamp": 2
+}
+},
+"exp": {
+"Exp": {
+"exp": 2
+}
+},
+"float": {
+"Float": {
+"float": 2
+}
+},
+"floor": {
+"Floor": {
+"floor": 1
+}
+},
+"int": {
+"Int": {
+"Int": 1,
+"int": 1
+}
+},
+"int16": {
+"Int16": {
+"int16": 2
+}
+},
+"int32": {
+"Int32": {
+"int32": 2
+}
+},
+"int64": {
+"Int64": {
+"int64": 2
+}
+},
+"int8": {
+"Int8": {
+"int8": 2
+}
+},
+"lods": {
+"LODs": {
+"Lods": 2
+}
+},
+"max": {
+"Max": {
+"Max": 1,
+"max": 1
+}
+},
+"min": {
+"Min": {
+"Min": 1,
+"min": 1
+}
+},
+"position": {
+"Position": {
+"Position": 1,
+"position": 1
+}
+},
+"targetid": {
+"TargetID": {
+"TargetId": 1
+},
+"TargetId": {
+"TargetId": 1
+}
+},
+"uint16": {
+"UInt16": {
+"uint16": 2
+}
+},
+"uint32": {
+"UInt32": {
+"uint32": 2
+}
+},
+"uint64": {
+"UInt64": {
+"uint64": 2
+}
+},
+"uint8": {
+"UInt8": {
+"uint8": 2
+}
+},
+"uniqueid": {
+"UniqueId": {
+"UniqueID": 2
+}
+},
+"variableguid": {
+"VariableGuid": {
+"VariableGUID": 2
+}
+}
+}
+}
