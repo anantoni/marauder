@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use Marauder, please cite the paper."
+title: "Marauder"
+type: software
+version: 1.0.0
+repository-code: "https://github.com/anantoni/marauder"
+license: MIT
+authors:
+  - family-names: Antoniadis
+    given-names: Anastasios
+    affiliation: Sourcemined
+preferred-citation:
+  type: article
+  title: "Marauder: Recovering Unreal Engine type mappings from game files alone"
+  authors:
+    - family-names: Antoniadis
+      given-names: Anastasios
+      affiliation: Sourcemined
+  year: 2026
+  publisher:
+    name: Zenodo
+  doi: 10.5281/zenodo.24461105

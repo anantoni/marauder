@@ -302,6 +302,10 @@ Marauder builds on the work of the Unreal modding community. Thank you to the au
 
 Developed by Anastasios Antoniadis at [Sourcemined](https://sourcemined.com). Contact: anantoni@sourcemined.com
 
+## Paper
+
+Antoniadis, A. *Marauder: Recovering Unreal Engine type mappings from game files alone.* Zenodo, 2026. [doi:10.5281/zenodo.24461105](https://doi.org/10.5281/zenodo.24461105)
+
 ## License
 
 [MIT](LICENSE). Marauder contains no game data and no keys.
