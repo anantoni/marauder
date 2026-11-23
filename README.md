@@ -6,7 +6,7 @@ Marauder builds a `.usmap` mapping file for an Unreal Engine game from the files
 
 It reads the game's own files in place: the shipping executable (as data), the cooked archives (`.pak`, `.utoc`/`.ucas`, or loose files) and the shipped configuration files. On success it prints `Mischief managed.`
 
-Made by [Sourcemined](https://sourcemined.com). Questions and feedback: anantoni@sourcemined.com
+Made by [Sourcemined](https://sourcemined.com) (project page: https://sourcemined.com/tools/marauder/). Questions and feedback: anantoni@sourcemined.com
 
 - [What a .usmap is and who this is for](#what-a-usmap-is-and-who-this-is-for)
 - [Install](#install)
