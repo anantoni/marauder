@@ -74,6 +74,12 @@ List the ids, one per line, in `$FULLLOAD_WORK/games-order.txt`.
 The released benchmark list (`../benchmark-list.csv`) gives the exact Steam build and depot
 manifests of the measured install of each game.
 
+The paper's full-load run used `ours` maps written with a first version of the public spelling
+table. The released generator writes a byte-identical map on 111 of the 121 games; on the other 10
+the maps differ only in the letter case of some property and enum entry names (they are equal
+after case folding), so a rerun with the released generator's maps can differ from the paper's
+hashes on those games, not in which packages load.
+
 ## Exact steps
 
 CUE4Parse commits used in the paper:

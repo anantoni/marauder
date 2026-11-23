@@ -228,7 +228,7 @@ A plain text file works too: one `GUID KEY` pair per line, or a line with only a
 
 ## Supported games and limitations
 
-- **Engine versions:** UE 4.17 to 5.7. UE 4.13 to 4.16 are out of scope.
+- **Engine versions:** UE 4.17 to 5.7 by design; tested on UE 4.19 to 5.7 (no UE 4.17 or 4.18 game was in the benchmark). UE 4.13 to 4.16 are out of scope.
 - **Tested platform:** Windows x64 shipping builds of games (`*-Win64-Shipping.exe`). Linux, Mac and console builds of games are untested. (Marauder itself runs on Windows and Linux.)
 - **Protected executables** (packers, anti-tamper wrappers that hide the executable's data) are out of scope. Marauder does not unpack or bypass them; it stops with a clear message when it finds no type tables.
 - **Custom engine builds** (studios that changed the engine's reflection code) can give weaker results. In our tests, one large modded game on a custom engine build failed.
@@ -245,11 +245,11 @@ Field accuracy of this release's configuration (public spelling table):
 
 | Set | Games | Fields right |
 |---|---:|---:|
-| Development (UE 4.17 to 5.7) | 66 | 99.923% |
+| Development (UE 4.19 to 5.7) | 66 | 99.923% |
 | Hold-out | 31 | 99.885% |
 | Fresh blind hold-out (frozen before scoring) | 24 | 99.867% |
 
-- By engine version (development set, research configuration): UE 4.17 to 4.27 99.990% (99.999% ignoring letter case); UE 5.0 to 5.7 99.89% to 99.90%.
+- By engine version (development set, research configuration): UE 4.19 to 4.27 99.990% (99.999% ignoring letter case); UE 5.0 to 5.7 99.89% to 99.90%.
 - 94% of the remaining errors on the fresh set are the Anim Blueprint structs described above, which the global map leaves out on purpose. Without that class, accuracy is 99.989% to 99.992% on all three sets.
 - In a real-use test with CUE4Parse over 188,493 packages from 102 games, the generated mappings loaded every package that the runtime dumps loaded on all supported engine versions; the only visible difference was the letter case of some property names.
 
@@ -257,15 +257,15 @@ Source: A. Antoniadis, *Recovering Unreal Engine type mappings from game files a
 
 ## Reproducing the results
 
-[`benchmark/benchmark-list.csv`](benchmark/benchmark-list.csv) lists every benchmark game: split, Steam app ID, exact Steam build ID, depot manifest IDs, engine version, status (scored, or excluded and why), the SHA-256 of the runtime reference mapping and the SHA-256 of the generated mapping. No game files, reference mappings or generated mappings are distributed.
+[`benchmark/benchmark-list.csv`](benchmark/benchmark-list.csv) lists every benchmark game: split, Steam app ID, exact Steam build ID, depot manifest IDs, engine version, status (scored, or excluded and why), the SHA-256 of the runtime reference mapping, the SHA-256 of the map scored in the paper and the SHA-256 of the map this release writes. No game files, reference mappings or generated mappings are distributed.
 
 To check a game you own:
 
 1. Download the listed build, for example with [DepotDownloader](https://github.com/SteamRE/DepotDownloader) and the listed depot manifest IDs (Steam serves the newest build by default).
 2. Capture a reference with [UE4SS](https://github.com/UE4SS-RE/RE-UE4SS): `DumpUSMAP(false)` (Blueprint types excluded), at the main menu, offline. Keep it only when two captures give the same schema. Compare its SHA-256 with `gold_sha256`.
-3. Run `marauder generate` on the install folder and `marauder compare` against your reference.
+3. Run `marauder generate` on the install folder; its SHA-256 should equal `released_generated_sha256`. Then run `marauder compare` against your reference; the result should equal the score columns.
 
-The `generated_sha256` column is the hash of the map scored in the paper, made with the research configuration of the spelling rule. This release uses the public spelling table, so its output can differ from that hash in the letter case of a few names; its scores are the ones in the table above. [docs/reproducing.md](docs/reproducing.md) has the details, including how to rebuild the spelling table from your own captures with [`tools/build_spelling_table.py`](tools/build_spelling_table.py).
+The `research_generated_sha256` column is the hash of the map scored in the paper, made with the research configuration of the spelling rule, which uses runtime dumps that are not distributed, so it cannot be regenerated outside. This release uses the public spelling table, so its output can differ from that hash in the letter case of a few names; `released_generated_sha256` and the score columns describe the released output. [docs/reproducing.md](docs/reproducing.md) has the details, including how to rebuild the spelling table from your own captures with [`tools/build_spelling_table.py`](tools/build_spelling_table.py).
 
 ## Troubleshooting and FAQ
 
