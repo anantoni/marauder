@@ -32,7 +32,7 @@ def make_pak(path, files, version=3, encrypted_index=False, encrypted=()):
     footer = struct.pack("<IIQQ", archives.PAK_MAGIC, version, io, len(idx)) + b"\0" * 20
     if version >= 4: footer = bytes([1 if encrypted_index else 0]) + footer
     out += footer
-    open(path, "wb").write(out)
+    with open(path, "wb") as fh: fh.write(out)
 
 
 def name_ref(names, s, number=0):
@@ -81,23 +81,23 @@ class V6Archives(unittest.TestCase):
     def test_unencrypted_entries_are_read(self):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "a.pak"); make_pak(p, {"Game/Content/A.uasset": b"abc", "Game/Config/X.ini": b"k=v"})
-            pak = archives.Pak(p)
-            self.assertEqual(pak.read("Game/Content/A.uasset"), b"abc")
-            self.assertEqual(pak.excluded, [])
+            with archives.Pak(p) as pak:
+                self.assertEqual(pak.read("Game/Content/A.uasset"), b"abc")
+                self.assertEqual(pak.excluded, [])
 
     def test_encrypted_entries_are_excluded_and_never_read(self):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "a.pak"); make_pak(p, {"A.uasset": b"abc", "B.uasset": b"xyz"}, version=4, encrypted={"B.uasset"})
-            pak = archives.Pak(p)
-            with self.assertRaises(PermissionError): pak.read("B.uasset")
-            self.assertEqual([(x.what, x.entries, x.reason) for x in pak.excluded], [("entries", 1, KP.NO_PROVIDER)])
+            with archives.Pak(p) as pak:
+                with self.assertRaises(PermissionError): pak.read("B.uasset")
+                self.assertEqual([(x.what, x.entries, x.reason) for x in pak.excluded], [("entries", 1, KP.NO_PROVIDER)])
 
     def test_encrypted_index_excludes_archive(self):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "a.pak"); make_pak(p, {"A.uasset": b"abc"}, version=4, encrypted_index=True)
-            pak = archives.Pak(p)
-            self.assertEqual(pak.entries, {})
-            self.assertEqual(pak.excluded[0].what, "index")
+            with archives.Pak(p) as pak:
+                self.assertEqual(pak.entries, {})
+                self.assertEqual(pak.excluded[0].what, "index")
 
 
 class V6KeyProvider(unittest.TestCase):

@@ -64,6 +64,25 @@ class Pak:
 
     def __init__(self, path, key_provider=None):
         self.path = path; self.f = open(path, "rb"); self.excluded = []; self.entries = {}
+        try:
+            self._load_index(key_provider)
+        except BaseException:
+            self.f.close(); raise
+
+    def close(self):
+        """Release the file handle (needed on Windows before the file can be moved or deleted)."""
+        if not self.f.closed: self.f.close()
+
+    def __enter__(self): return self
+
+    def __exit__(self, *exc): self.close()
+
+    def __del__(self):
+        try: self.close()
+        except Exception: pass
+
+    def _load_index(self, key_provider):
+        path = self.path
         self.f.seek(0, 2); size = self.f.tell()
         self.f.seek(max(0, size - 2048)); tail = self.f.read()
         i = tail.rfind(struct.pack("<I", PAK_MAGIC))

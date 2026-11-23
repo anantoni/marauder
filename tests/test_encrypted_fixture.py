@@ -26,29 +26,29 @@ class EncryptedPak(unittest.TestCase):
         for version in (8, 11):
             with self.subTest(version=version):
                 p = self.build(version)
-                pak = archives.Pak(p, KP.StaticKeys(default=self.key))
-                self.assertEqual(pak.excluded, [])
-                self.assertEqual(sorted(pak.entries), sorted(self.files))
-                for name, data in self.files.items():
-                    self.assertEqual(pak.read(name), data, name)
+                with archives.Pak(p, KP.StaticKeys(default=self.key)) as pak:
+                    self.assertEqual(pak.excluded, [])
+                    self.assertEqual(sorted(pak.entries), sorted(self.files))
+                    for name, data in self.files.items():
+                        self.assertEqual(pak.read(name), data, name)
 
     def test_without_key_everything_is_excluded_and_listed(self):
         p = self.build(11)
-        pak = archives.Pak(p)
-        self.assertEqual(pak.entries, {})
-        self.assertEqual([x.reason for x in pak.excluded], [KP.NO_PROVIDER])
+        with archives.Pak(p) as pak:
+            self.assertEqual(pak.entries, {})
+            self.assertEqual([x.reason for x in pak.excluded], [KP.NO_PROVIDER])
 
     def test_wrong_key_is_reported_not_silent(self):
         p = self.build(11)
-        pak = archives.Pak(p, KP.StaticKeys(default=make_key()))
-        self.assertEqual([x.reason for x in pak.excluded], [KP.WRONG_KEY])
-        self.assertEqual(pak.entries, {})
+        with archives.Pak(p, KP.StaticKeys(default=make_key())) as pak:
+            self.assertEqual([x.reason for x in pak.excluded], [KP.WRONG_KEY])
+            self.assertEqual(pak.entries, {})
 
     def test_encrypted_entries_with_plain_index(self):
         p = make_pak(os.path.join(self.d, "e.pak"), self.files, version=8, key=self.key,
                      encrypt_entries={"MyGame/Config/DefaultEngine.ini"})
-        self.assertFalse(archives.Pak(p).readable("MyGame/Config/DefaultEngine.ini"))
-        with self.assertRaises(PermissionError): archives.Pak(p).read("MyGame/Config/DefaultEngine.ini")
+        with archives.Pak(p) as pak: self.assertFalse(pak.readable("MyGame/Config/DefaultEngine.ini"))
+        with archives.Pak(p) as pak, self.assertRaises(PermissionError): pak.read("MyGame/Config/DefaultEngine.ini")
         problems = []
         self.assertEqual(config_order.read_files([p], None, problems), {})
         self.assertEqual(problems[0][1], "MyGame/Config/DefaultEngine.ini")   # reported, not skipped silently
@@ -59,7 +59,7 @@ class EncryptedPak(unittest.TestCase):
         guid = bytes(range(1, 17))
         p = make_pak(os.path.join(self.d, "g.pak"), self.files, version=11, key=self.key, encrypt_index=True, key_guid=guid)
         keys = KP.StaticKeys(default=make_key(), by_guid={guid.hex(): self.key})
-        self.assertEqual(archives.Pak(p, keys).read("MyGame/Content/Plain.txt"), b"plain")
+        with archives.Pak(p, keys) as pak: self.assertEqual(pak.read("MyGame/Content/Plain.txt"), b"plain")
 
 
 class EncryptedIoStore(unittest.TestCase):
