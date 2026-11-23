@@ -41,6 +41,8 @@ marauder = "usmap_generator.cli:main"
 
 [project.urls]
 Homepage = "https://sourcemined.com"
+Repository = "https://github.com/anantoni/marauder-usmap"
+Issues = "https://github.com/anantoni/marauder-usmap/issues"
 
 [tool.setuptools.dynamic]
 version = { attr = "usmap_generator.__version__" }

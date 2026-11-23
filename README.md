@@ -65,7 +65,7 @@ python -m pip install marauder-usmap
 ### From source
 
 ```bash
-git clone https://github.com/anantoni/marauder.git
+git clone https://github.com/anantoni/marauder-usmap.git
 cd marauder
 python -m pip install -e ".[dev]"
 python -m pytest            # optional: run the tests
