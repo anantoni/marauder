@@ -1,5 +1,5 @@
 # run_list.py NAME OUTDIR WORKERS : run the existing OUTDIR/<game>.0.list.txt lists with gold and ours (hooked harness NAME)
-import os, subprocess, sys
+import subprocess, sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))

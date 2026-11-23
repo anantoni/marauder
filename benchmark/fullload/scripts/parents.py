@@ -2,7 +2,7 @@
 Dumps the package that defines each class (diag binary, gold map) and follows SuperStruct until a /Script/ class.
 The classifier uses this to decide "derives from FunctionalTest" from the parent class, not from the path.
 usage: parents.py -> runs/parents.json  {game: {class_path: [super, super-of-super, ...]}}"""
-import json, os, subprocess, sys, shutil, collections
+import json, subprocess, sys, shutil, collections
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent)); from gameargs import args
 from fl_config import OODLE, ENV, W

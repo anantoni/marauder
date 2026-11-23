@@ -1,7 +1,7 @@
 # run_par.py NAME GAMES.txt OUTDIR [WORKERS] : full-load every package of each game with gold and ours using hooked harness NAME,
 # split into chunks run by a small worker pool (all inside the caller's memory-capped scope). Resumable.
 # Skips packages that crashed, timed out or ran out of memory in the original full run (runs/merged), recorded in skipped.tsv.
-import json, os, subprocess, sys
+import json, subprocess, sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))

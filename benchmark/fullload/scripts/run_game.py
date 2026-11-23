@@ -1,7 +1,7 @@
 """Run the full-load check for one game: every package, three maps (gold, ours = v11 option (v), none).
 Runs inside one memory-capped scope started by driver.sh. Resumable: harness skips packages already written.
 usage: run_game.py <game> <wall_seconds>"""
-import json, os, subprocess, sys, time
+import json, subprocess, sys, time
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from gameargs import args

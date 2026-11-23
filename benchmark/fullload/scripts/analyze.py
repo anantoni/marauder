@@ -40,7 +40,7 @@ def touched_struct(r):
     return m.group(1) if m else None
 
 def summarize(rows):
-    n = len(rows); c = collections.Counter()
+    c = collections.Counter()
     for x in rows:
         G, O, N = x['gold'], x['ours'], x['none']
         fg, fo, fn = bool(G and G.get('full')), bool(O and O.get('full')), bool(N and N.get('full'))

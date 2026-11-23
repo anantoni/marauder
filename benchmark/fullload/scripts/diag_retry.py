@@ -1,6 +1,6 @@
 """Finish the diag pass for one game with restarts: kill-artefact crash rows are dropped and retried once more;
 a package that crashes on two attempts keeps its crash row. usage: diag_retry.py <game> <map>"""
-import json, os, subprocess, sys, shutil
+import json, subprocess, sys, shutil
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from gameargs import args

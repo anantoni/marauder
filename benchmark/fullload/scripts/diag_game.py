@@ -1,6 +1,6 @@
 """Diagnostic re-run (bin-diag: class module, exception chain, stack frames) of every package that did not
 fully load with gold or ours in the main run. usage: diag_game.py <game>"""
-import json, os, subprocess, sys
+import json, subprocess, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from gameargs import args
