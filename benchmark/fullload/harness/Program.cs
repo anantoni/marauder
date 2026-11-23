@@ -128,18 +128,52 @@ static string TryType(CUE4Parse.UE4.Assets.IPackage pkg, int i)
     return "?";
 }
 
-static string LowerKeys(string js)
+// Streaming replacement for the old string-based hashing: the export JSON is written as UTF-8 into a spill buffer
+// (memory up to SPILL_MAX bytes, then a temp file), never as one .NET string (limit ~2^30 chars: an AnimSequence
+// export overflowed it). The byte streams hashed are exactly the old ones: h = UTF-8 of the JSON, hl = UTF-8 of the
+// invariant-lowercased JSON, hn = UTF-8 of the JSON re-written with lowercased property names (see LowerKeysStream).
+var spillMax = long.Parse(Environment.GetEnvironmentVariable("SPILL_MAX") ?? "67108864");
+var spillDir = Path.GetDirectoryName(Path.GetFullPath(outPath))!;
+var jsonSer = JsonSerializer.CreateDefault(settings);
+
+static void LowerKeysStream(Stream src, Stream dst)
 {
-    var sb = new StringBuilder(js.Length);
-    using var r = new JsonTextReader(new StringReader(js)) { DateParseHandling = DateParseHandling.None, FloatParseHandling = FloatParseHandling.Double };
-    using var w = new JsonTextWriter(new StringWriter(sb)) { Formatting = Formatting.None };
+    using var r = new JsonTextReader(new StreamReader(src, new UTF8Encoding(false), false, 1 << 16, true)) { DateParseHandling = DateParseHandling.None, FloatParseHandling = FloatParseHandling.Double };
+    using var sw = new StreamWriter(dst, new UTF8Encoding(false), 1 << 16, true);
+    using var w = new JsonTextWriter(sw) { Formatting = Formatting.None };
     while (r.Read())
     {
         if (r.TokenType == JsonToken.PropertyName) w.WritePropertyName(((string)r.Value!).ToLowerInvariant());
         else w.WriteToken(r, false);
     }
     w.Flush();
-    return sb.ToString();
+}
+static void FeedStream(HashAlgorithm a, Stream s)
+{
+    var buf = new byte[1 << 16]; int n;
+    while ((n = s.Read(buf, 0, buf.Length)) > 0) a.TransformBlock(buf, 0, n, null, 0);
+}
+static void FeedLowered(HashAlgorithm a, Stream s)
+{
+    using var rd = new StreamReader(s, new UTF8Encoding(false), false, 1 << 16, true);
+    var enc = new UTF8Encoding(false).GetEncoder();
+    var cb = new char[1 << 16]; var bb = new byte[(1 << 16) * 3 + 8]; int carry = 0;
+    while (true)
+    {
+        var n = rd.Read(cb, carry, cb.Length - carry);
+        var end = n <= 0; n = (end ? 0 : n) + carry; carry = 0;
+        if (!end && n > 0 && char.IsHighSurrogate(cb[n - 1])) { carry = 1; n--; }   // keep a surrogate pair in one piece
+        if (n > 0)
+        {
+            var low = new string(cb, 0, n).ToLowerInvariant();
+            var k = enc.GetBytes(low.AsSpan(), bb, false);
+            a.TransformBlock(bb, 0, k, null, 0);
+        }
+        if (end) break;
+        if (carry == 1) cb[0] = cb[n];
+    }
+    var f = enc.GetBytes(ReadOnlySpan<char>.Empty, bb, true);
+    if (f > 0) a.TransformBlock(bb, 0, f, null, 0);
 }
 
 foreach (var path in File.ReadAllLines(rest[1]))
@@ -168,10 +202,20 @@ foreach (var path in File.ReadAllLines(rest[1]))
             {
                 var o = pkg.ExportsLazy[i].Value;
                 if (o.ExportType == "AnimBlueprintGeneratedClass") abp = true;
-                var js = JsonConvert.SerializeObject(o, settings);
+                using var raw = new Spill(spillMax, spillDir);
+                using (var rsw = new StreamWriter(raw, new UTF8Encoding(false), 1 << 16, true))
+                using (var jw = new JsonTextWriter(rsw) { Formatting = jsonSer.Formatting })
+                { jsonSer.Serialize(jw, o, null); jw.Flush(); }
                 if (dumpDir != null) File.AppendAllText(Path.Combine(dumpDir, Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(path)))[..16] + ".json"), $"{{\"export\":{i},\"data\":{JsonConvert.SerializeObject(o, Formatting.Indented, settings)}}}\n");
-                Feed(sha, js); Feed(shl, js.ToLowerInvariant());
-                try { Feed(shn, LowerKeys(js)); } catch (JsonException) { Feed(shn, "#LKFAIL"); Feed(shn, js); lkFail++; }
+                raw.Rewind(); FeedStream(sha, raw);
+                raw.Rewind(); FeedLowered(shl, raw);
+                using (var lk = new Spill(spillMax, spillDir))
+                {
+                    var lkOk = true;
+                    try { raw.Rewind(); LowerKeysStream(raw, lk); } catch (JsonException) { lkOk = false; }
+                    if (lkOk) { lk.Rewind(); FeedStream(shn, lk); }
+                    else { Feed(shn, "#LKFAIL"); raw.Rewind(); FeedStream(shn, raw); lkFail++; }
+                }
                 if (mism.Count == before) nOk++; else { nBad++; if (diag && fx.Count < 6) fx.Add(new() { ["i"] = i, ["type"] = TryType(pkg, i), ["class"] = o.GetType().Name, ["mm"] = mism[^1] }); }
             }
             catch (Exception e)
@@ -215,3 +259,28 @@ foreach (var path in File.ReadAllLines(rest[1]))
 }
 File.WriteAllText(curPath, "");
 outw.Dispose();
+
+sealed class Spill : Stream
+{
+    Stream s = new MemoryStream(); readonly long max; readonly string dir;
+    public Spill(long max, string dir) { this.max = max; this.dir = dir; }
+    public void Rewind() { s.Position = 0; }
+    public override void Write(byte[] b, int o, int c)
+    {
+        if (s is MemoryStream && s.Length + c > max)
+        {
+            Directory.CreateDirectory(dir);
+            var f = new FileStream(Path.Combine(dir, "spill-" + Guid.NewGuid().ToString("N") + ".tmp"), FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 1 << 16, FileOptions.DeleteOnClose);
+            s.Position = 0; s.CopyTo(f); s.Dispose(); s = f;
+        }
+        s.Write(b, o, c);
+    }
+    public override int Read(byte[] b, int o, int c) => s.Read(b, o, c);
+    public override bool CanRead => true; public override bool CanSeek => true; public override bool CanWrite => true;
+    public override long Length => s.Length;
+    public override long Position { get => s.Position; set => s.Position = value; }
+    public override void Flush() { }
+    public override long Seek(long o, SeekOrigin so) => s.Seek(o, so);
+    public override void SetLength(long v) => s.SetLength(v);
+    protected override void Dispose(bool d) { if (d) s.Dispose(); base.Dispose(d); }
+}
