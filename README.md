@@ -253,7 +253,7 @@ Field accuracy of this release's configuration (public spelling table):
 - 94% of the remaining errors on the fresh set are the Anim Blueprint structs described above, which the global map leaves out on purpose. Without that class, accuracy is 99.989% to 99.992% on all three sets.
 - In a real-use test with CUE4Parse over 188,493 packages from 102 games, the generated mappings loaded every package that the runtime dumps loaded on all supported engine versions; the only visible difference was the letter case of some property names.
 
-Source: A. Antoniadis, *Recovering Unreal Engine type mappings from game files alone*, Sourcemined, 2026 (link to be added at release). The paper also reports results per rule, per engine version, the research configuration of the spelling rule (99.923%, 99.886% and 99.867% on the three sets), and every look at the hold-out data.
+Source: A. Antoniadis, *Marauder: Recovering Unreal Engine type mappings from game files alone*, Sourcemined, 2026, https://doi.org/10.5281/zenodo.24461104. The paper also reports results per rule, per engine version, the research configuration of the spelling rule (99.923%, 99.886% and 99.867% on the three sets), and every look at the hold-out data.
 
 ## Reproducing the results
 
