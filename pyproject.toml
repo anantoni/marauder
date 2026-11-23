@@ -3,7 +3,7 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "marauder-usmap"
+name = "marauder"
 dynamic = ["version"]
 description = "Build .usmap mapping files for Unreal Engine games from the installed files, without running the game."
 readme = "README.md"

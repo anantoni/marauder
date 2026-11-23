@@ -45,7 +45,7 @@ Windows (PowerShell):
 py -m pip install --user pipx
 py -m pipx ensurepath
 # open a new terminal, then:
-pipx install marauder-usmap
+pipx install marauder
 ```
 
 Linux:
@@ -53,13 +53,13 @@ Linux:
 ```bash
 python3 -m pip install --user pipx     # or: sudo apt install pipx
 python3 -m pipx ensurepath
-pipx install marauder-usmap
+pipx install marauder
 ```
 
 ### With pip
 
 ```bash
-python -m pip install marauder-usmap
+python -m pip install marauder
 ```
 
 ### From source
