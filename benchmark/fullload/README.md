@@ -32,6 +32,7 @@ run, with no map). The harness refuses encrypted archives (exit code 3).
 | `scripts/diag_driver.sh`, `diag_game.py`, `diag_retry.*`, `diag2.sh` | Diagnostic re-run of every package that did not fully load, with the natives library, exception chains and virtual paths. |
 | `scripts/run_par.py`, `run_list2.py`, `run_list.py`, `run.py` | Reruns of a package list with a named build (reader-fix rerun, regression samples). |
 | `scripts/compare.py`, `compare_full.py` | Before/after comparison of two runs: regressions, newly full, hash changes. |
+| `scripts/compare_all.py`, `fullfix_table.py` | All-games reload with the fixes: merge row folders, compare against the pinned run, per-split table with the classifier's impossible packages. |
 | `scripts/analyze.py`, `classify.py`, `parents.py`, `make_report.py` | Merge rows, group the shared failures by cause, resolve Blueprint parent classes, write the tables. |
 | `scripts/fl_config.py`, `gameargs.py`, `common.sh` | Shared settings (all from environment variables). |
 
@@ -151,7 +152,8 @@ not published separately yet.
    ```
 
    Put the games to rerun in a file (`games.txt`, one id per line) and rerun every package
-   that did not crash or run out of memory in step 2, with both maps:
+   that did not crash or run out of memory in step 2, with both maps.
+   With the streaming harness (commit 5c37005) the packages that failed with an out-of-memory exception in the pinned run load too: their JSON was longer than one .NET string can hold. `SPILL_MAX` (bytes, default 67108864) sets when the buffer moves to a temp file in the output folder; leave room on that disk.
 
    ```
    systemd-run --user --scope -p MemoryMax=12G python3 benchmark/fullload/scripts/run_par.py integ games.txt integ-out 4
@@ -163,6 +165,21 @@ not published separately yet.
    reruns lists with one memory scope per process and one-package retry after an out-of-memory kill.
    `compare.py BASEDIR FIXDIR` does the same comparison between two arbitrary row directories.
    To test one build against another, name them with `mkbench.sh NAME REF` (set `INTEGRATION=1` for the fix patch).
+
+   For the all-games table, reload every game (not only the ones with a fixed class) and merge the row
+   folders in the order you ran them (a later folder replaces a package's row from an earlier one):
+
+   ```
+   python3 benchmark/fullload/scripts/compare_all.py merged-all integ-out rest-out retry-out
+   python3 benchmark/fullload/scripts/fullfix_table.py merged-all
+   ```
+
+   `compare_all.py` prints regressions (must be 0), newly full packages per map, load result and data
+   equality between the maps, exact-hash changes against the pinned run, and the packages still not full by
+   owner class. `fullfix_table.py` prints the per-split table (packages, impossible, loadable, full with the
+   pinned reader, full with the fixes, rates); "impossible" comes from the classifier groups of
+   `classify.py` / `make_report.py`, so run those on the pinned run first. A row's `spill` field counts the
+   exports that went through the temp file.
 
 ## Memory caps
 
@@ -182,7 +199,7 @@ exports, `soft` skipped nested reads by kind, `mm` end-of-export mismatches, `er
 On the paper's corpus the tables come out as: 510,503 packages, 509,297 fully loaded with both
 maps, 0 loaded with one map and not the other, 145,440 with no map, data equal after lowercasing
 object keys on 509,122 of 509,297 (99.966%), byte-identical on 505,573 (99.269%); with the
-reader fixes, 0 regressions on the 242,858 packages of the 40 rerun games that loaded before.
+reader fixes and the streaming harness, all 121 games reloaded: 510,258 fully loaded with both maps, 0 regressions on the 509,297 that loaded before, 961 newly full.
 Your numbers will differ with your games and builds; the checks that must hold are recall 100%
 (no package full with gold and not with ours) and 0 regressions in step 5. Hashes of the
 runs depend on the CUE4Parse commit: output changes made upstream after `7353666` change some

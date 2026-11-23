@@ -7,7 +7,7 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 Initial public release.
 
 - `marauder generate`: builds a `.usmap` (version 4, uncompressed) from an installed Unreal Engine
-  4.17 to 5.7 game: executable reflection tables, cooked archives (`.pak`, IoStore, loose files) and
+  4.17 to 5.7 game (tested on 4.19 to 5.7): executable reflection tables, cooked archives (`.pak`, IoStore, loose files) and
   configuration files. Six progress steps; every archive or entry not read is listed with its reason.
 - `--per-asset`: per-asset mapping of UE5 Anim Blueprint generated structs in JSON and binary
   (same content; format in `docs/per-asset-format.md`).
@@ -25,3 +25,4 @@ Initial public release.
 - `marauder compare`: field and record accuracy against a reference mapping, with the paper's metric.
 - `marauder inspect`: print a mapping's classes, structs and enums.
 - Benchmark list with Steam app IDs, build IDs, depot manifests and SHA-256 hashes.
+- Full-load benchmark (`benchmark/fullload/`): harness, load-check patch, reader-fix patch and scripts; the harness streams each export's JSON into its hashes.

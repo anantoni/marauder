@@ -5,7 +5,8 @@
 // Row fields: st ok|partial|failed|crash|timeout (ok = every export loads, no exception, export ends at the right byte),
 // soft = nested reads CUE4Parse skipped or repositioned silently, full = st ok and no soft events,
 // h = exact JSON hash, hn = hash with object keys lowercased (values untouched), hl = whole JSON lowercased,
-// abp = package holds an AnimBlueprintGeneratedClass (by loaded export type or Anim generated-struct lookup).
+// abp = package holds an AnimBlueprintGeneratedClass (by loaded export type or Anim generated-struct lookup),
+// spill = exports whose JSON was longer than SPILL_MAX bytes (env, default 67108864) and went through a temp file.
 // Stops with exit code 3 if any archive or entry is encrypted. Resumable: skips paths already in out.jsonl.
 using System.Security.Cryptography;
 using System.Text;
@@ -187,7 +188,7 @@ foreach (var path in File.ReadAllLines(rest[1]))
     var row = new Dictionary<string, object?> { ["p"] = path };
     var excs = new Dictionary<string, int>();
     var fx = new List<Dictionary<string, object?>>();
-    string? firstErr = null; int nEx = 0, nOk = 0, nBad = 0; bool unv = false, abp = false; int lkFail = 0;
+    string? firstErr = null; int nEx = 0, nOk = 0, nBad = 0; bool unv = false, abp = false; int lkFail = 0; int nSpill = 0;
     using var sha = SHA1.Create(); using var shn = SHA1.Create(); using var shl = SHA1.Create();
     void Feed(HashAlgorithm a, string s) { var b = Encoding.UTF8.GetBytes(s); a.TransformBlock(b, 0, b.Length, null, 0); }
     try
@@ -206,6 +207,7 @@ foreach (var path in File.ReadAllLines(rest[1]))
                 using (var rsw = new StreamWriter(raw, new UTF8Encoding(false), 1 << 16, true))
                 using (var jw = new JsonTextWriter(rsw) { Formatting = jsonSer.Formatting })
                 { jsonSer.Serialize(jw, o, null); jw.Flush(); }
+                if (raw.OnDisk) nSpill++;
                 if (dumpDir != null) File.AppendAllText(Path.Combine(dumpDir, Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(path)))[..16] + ".json"), $"{{\"export\":{i},\"data\":{JsonConvert.SerializeObject(o, Formatting.Indented, settings)}}}\n");
                 raw.Rewind(); FeedStream(sha, raw);
                 raw.Rewind(); FeedLowered(shl, raw);
@@ -249,6 +251,7 @@ foreach (var path in File.ReadAllLines(rest[1]))
     if (mism.Count > 0) row["mm"] = mism.Take(5).ToList();
     if (fx.Count > 0) row["fx"] = fx;
     if (lkFail > 0) row["lkfail"] = lkFail;
+    if (nSpill > 0) row["spill"] = nSpill;   // exports whose JSON went to the temp file (longer than SPILL_MAX bytes)
     if (soft.Count > 0) row["soft"] = soft.OrderByDescending(kv => kv.Value).Take(8).ToDictionary(kv => kv.Key, kv => kv.Value);
     row["full"] = (string)row["st"]! == "ok" && soft.Count == 0;
     row["h"] = Convert.ToHexString(sha.Hash!)[..16];
@@ -265,6 +268,7 @@ sealed class Spill : Stream
     Stream s = new MemoryStream(); readonly long max; readonly string dir;
     public Spill(long max, string dir) { this.max = max; this.dir = dir; }
     public void Rewind() { s.Position = 0; }
+    public bool OnDisk => s is FileStream;
     public override void Write(byte[] b, int o, int c)
     {
         if (s is MemoryStream && s.Length + c > max)
