@@ -304,7 +304,7 @@ Developed by Anastasios Antoniadis at [Sourcemined](https://sourcemined.com). Co
 
 ## Paper
 
-Antoniadis, A. *Marauder: Recovering Unreal Engine type mappings from game files alone.* Zenodo, 2026. [doi:10.5281/zenodo.24461105](https://doi.org/10.5281/zenodo.24461105)
+Antoniadis, A. *Marauder: Recovering Unreal Engine type mappings from game files alone.* Zenodo, 2026. [doi:10.5281/zenodo.24461104](https://doi.org/10.5281/zenodo.24461104)
 
 ## License
 
